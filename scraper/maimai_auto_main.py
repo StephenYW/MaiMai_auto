@@ -1,8 +1,6 @@
 import os
 import time
 import pandas as pd
-import shutil
-import sys
 
 from selenium import webdriver
 from selenium.common import TimeoutException, NoSuchElementException
@@ -17,25 +15,19 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 class MaiMaiScraper:
-    def __init__(self, filter_page="https://maimai.cn/ent/talents/discover/search_v2/", profile_url=None, excel_file=None, url_column='Link', profiles=None):        
+    def __init__(self, filter_page="https://maimai.cn/ent/talents/discover/search_v2/", tag = None, max_candidates = None):        
         chrome_options = webdriver.ChromeOptions()
-        #chrome_options.add_argument('--proxy-server=https://127.0.0.1:11304')
-        #self.download_dir = r"C:\\AnyHelper\\MaiMai_auto\\output"  # Specify your desired download directory
-        #prefs = {"download.default_directory": self.download_dir}
-        #chrome_options.add_experimental_option("prefs", prefs)
 
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
         self.login_url = "https://maimai.cn/platform/login"
         self.filter_page = filter_page
-        self.profile_url = profile_url
-        self.excel_file = excel_file
-        self.url_column = url_column
+        self.tag = tag
+        self.max_candidates = max_candidates
         self.cookies = []
         self.wait_10s = WebDriverWait(self.driver, 10, 0.5)
         self.wait_180s = WebDriverWait(self.driver, 180, 0.5)
         self.filter_count = 0
         self.connect_count = 0
-        self.profiles = profiles
 
         self.candidate_df = pd.DataFrame(columns=[
             "Name", "URL", "Description", "Industry", "Location", "IP Location",
@@ -48,9 +40,6 @@ class MaiMaiScraper:
 
     def upload_link(self):
         self.driver.get(self.filter_page)
-        #self.wait_10s.until(expected_conditions.presence_of_element_located(
-        #    (By.XPATH, '//div[@data-x-deferred-did-intersect]')
-        #))*/
         print(f"Link uploaded: {self.filter_page}")
         time.sleep(5)  # wait for the page to load
 
@@ -73,7 +62,7 @@ class MaiMaiScraper:
     def quit(self):
         self.driver.quit()
 
-    def scroll_and_load(self, max_people=100):
+    def scroll_and_load(self, max_people=max_candidates):
         #scrollable_div = self.driver.find_element(By.XPATH, '//div[@data-x--search-results-container]')
         current_count = 0
         while True:
@@ -202,8 +191,6 @@ class MaiMaiScraper:
                     for keyword in job_keywords:
                         job_keywords_text = job_keywords_text + keyword.text.strip() + ","
     
-                    
-                    print(f"Job Keywords {i + 1}: {job_keywords_text}")
                     info[f"Job Keywords {i + 1}"] = job_keywords_text[:-1]
                 except:
                     print("Job Keywords not found")
@@ -265,7 +252,12 @@ class MaiMaiScraper:
     
     def click_and_extract(self):
         candidates = self.driver.find_elements(By.XPATH, "//ul[contains(@class, 'list-group')]//div[starts-with(@id, 'contactcard')]//*[contains(@class, 'Tappable-inactive list-group-item')]")
+        candidate_count = 0
         for candidate in candidates:
+            #Max candidates to be searched
+            if candidate_count > self.max_candidates:
+                break
+
             # Scroll to the candidate element
             self.driver.execute_script("arguments[0].scrollIntoView(true);", candidate)
             self.driver.execute_script("window.scrollBy(0, -100);")
@@ -276,7 +268,7 @@ class MaiMaiScraper:
             new_window = self.driver.window_handles[-1]
             self.driver.switch_to.window(new_window)
 
-            time.sleep(2)
+            time.sleep(1)
 
             # Extract the information from the profile page
             try:
@@ -294,7 +286,7 @@ class MaiMaiScraper:
             time.sleep(1)  # Wait for the page to load
 
         # Export DataFrame to Excel file
-        output_file_path = "C:/AnyHelper/MaiMai_auto/output/candidates_info.xlsx"
+        output_file_path = f"C:/AnyHelper/MaiMai_auto/output/{self.tag}candidates_info.xlsx"
         self.candidate_df.to_excel(output_file_path, index=False)
         print(f"Exported candidate information to {output_file_path}")
 
@@ -322,14 +314,12 @@ class MaiMaiScraper:
 
 if __name__ == "__main__":
     # Specify the necessary parameters
-    filter_page = "https://maimai.cn/web/search_center?type=contact&query=%E4%B8%8A%E6%B5%B7%E5%88%9D%E4%BA%BA&highlight=true"
-    profile_url = None
-    excel_file = None
-    url_column = 'Link'
-    profiles = None
+    filter_page = "https://maimai.cn/web/search_center?type=contact&query=Bytedance&highlight=true"
+    tag = "AnyHelper"
+    max_candidates = 100
 
     # Create an instance of MaiMaiScraper
-    scraper = MaiMaiScraper(filter_page=filter_page, profile_url=profile_url, excel_file=excel_file, url_column=url_column, profiles=profiles)
+    scraper = MaiMaiScraper(filter_page=filter_page, tag = tag + "_", max_candidates=max_candidates)
 
     # Run the scraper
     scraper.run()

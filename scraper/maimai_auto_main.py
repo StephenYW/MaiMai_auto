@@ -9,13 +9,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 
-from cookies_util import load_cookies, save_cookies
+from util.cookies_util import *
 
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 class MaiMaiScraper:
-    def __init__(self, filter_page="https://maimai.cn/ent/talents/discover/search_v2/", tag = None, max_candidates = None):        
+    def __init__(self, filter_page = None, tag = None, max_candidates = None):        
         chrome_options = webdriver.ChromeOptions()
 
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
@@ -26,8 +26,6 @@ class MaiMaiScraper:
         self.cookies = []
         self.wait_10s = WebDriverWait(self.driver, 10, 0.5)
         self.wait_180s = WebDriverWait(self.driver, 180, 0.5)
-        self.filter_count = 0
-        self.connect_count = 0
 
         self.candidate_df = pd.DataFrame(columns=[
             "Name", "URL", "Description", "Industry", "Location", "IP Location",
@@ -62,7 +60,7 @@ class MaiMaiScraper:
     def quit(self):
         self.driver.quit()
 
-    def scroll_and_load(self, max_people=max_candidates):
+    def scroll_and_load(self):
         #scrollable_div = self.driver.find_element(By.XPATH, '//div[@data-x--search-results-container]')
         current_count = 0
         while True:
@@ -78,7 +76,7 @@ class MaiMaiScraper:
             current_count = new_count
 
             # If the number of loaded items exceeds the maximum, exit the loop
-            if current_count >= max_people:
+            if current_count >= self.max_candidates:
                 break
 
         print(f"Loaded {current_count} people.")
@@ -311,9 +309,9 @@ class MaiMaiScraper:
 
         time.sleep(10)
 
-
+"""
 if __name__ == "__main__":
-    # Specify the necessary parameters
+    #Specify the necessary parameters
     filter_page = "https://maimai.cn/web/search_center?type=contact&query=Bytedance&highlight=true"
     tag = "AnyHelper"
     max_candidates = 100
@@ -323,3 +321,4 @@ if __name__ == "__main__":
 
     # Run the scraper
     scraper.run()
+"""

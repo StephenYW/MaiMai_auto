@@ -70,11 +70,6 @@ class MaiMaiScraper:
 
         print("登录成功 - login success")
 
-    def login(self):
-        self.driver.get(self.login_url)
-        print("Cookie support will be added later \n")
-        self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
-
     def quit(self):
         self.driver.quit()
 
@@ -87,7 +82,7 @@ class MaiMaiScraper:
             time.sleep(2)  # Wait for the new items to load
 
             # Count the number of loaded items
-            new_count = len(self.driver.find_elements(By.XPATH, '//*[@id="react_app"]/div/div/div[2]/div/div[1]/div[2]/div/div/div[1]/ul/div'))
+            new_count = len(self.driver.find_elements(By.XPATH, "//ul[contains(@class, 'list-group')]//div[starts-with(@id, 'contactcard')]"))
             if new_count == current_count:
                 # If no new items loaded, exit the loop
                 break
@@ -132,59 +127,171 @@ class MaiMaiScraper:
             "Degree 2": ""
         }
 
+        #Extract Personal Basic Information
         try:
-            name_element = self.driver.find_element(By.XPATH, "//h1[@class='maimai-personal-card-name']")
-            info["Name"] = name_element.text.strip()
+            content = self.driver.find_element(By.XPATH, "//meta[@name='description']").get_attribute("content")
+            meta_content = content.split(',')
+            name = meta_content[0].strip()
+            description = meta_content[1].strip()
+            location = meta_content[2].strip() + "," + meta_content[3].strip()
+            industry = meta_content[4].strip()
+            info["Name"] = name
+            info["Description"] = description
+            info["Location"] = location
+            info["Industry"] = industry
+            print(f"Name: {name}\n")
+            #print(f"Descfiption: {description}\n")
+            #print(f"location: {location}\n")
+            #print(f"industry: {industry}\n")
         except NoSuchElementException:
-            print("Name not found")
+            print("Cant find content")
 
+        #Extract IP address
         try:
-            description_element = self.driver.find_element(By.XPATH, "//div[@class='maimai-personal-card-desc']")
-            info["Description"] = description_element.text.strip()
-        except NoSuchElementException:
-            print("Description not found")
-
-        try:
-            industry_element = self.driver.find_element(By.XPATH, "//span[contains(text(),'所在行业：')]/following-sibling::span")
-            info["Industry"] = industry_element.text.strip()
-        except NoSuchElementException:
-            print("Industry not found")
-
-        try:
-            location_element = self.driver.find_element(By.XPATH, "//span[contains(text(),'所在地区：')]/following-sibling::span")
-            info["Location"] = location_element.text.strip()
-        except NoSuchElementException:
-            print("Location not found")
-
-        try:
-            ip_location_element = self.driver.find_element(By.XPATH, "//span[contains(text(),'IP地址所在地：')]/following-sibling::span")
-            info["IP Location"] = ip_location_element.text.strip()
+            ip_location_element = self.driver.find_element(By.XPATH, "//span[contains(@style, 'color: rgb(175, 177, 188)') and contains(@style, 'font-size: 12px') and contains(@style, 'line-height: 1.2')]")
+            ip_ref, ip = ip_location_element.text.split('：')
+            info["IP Location"] = ip
         except NoSuchElementException:
             print("IP Location not found")
+
+        #Extract Work Information
+        try:
+            ul_element = self.driver.find_element(By.XPATH, "//span[contains(text(), '工作经历')]/ancestor::div[@class='p-b-5 p-t p-x gray-bg-f2f6f7 text-info']/following-sibling::ul[@class='list-group m-b-0']")
+            div_elements = ul_element.find_elements(By.XPATH, ".//div[contains(@class, 'sc-cpmLhU')]")
+
+            for i in range(min(3, len(div_elements))):
+                div_element = div_elements[i]
+
+                try:
+                    position_element = div_element.find_element(By.CLASS_NAME, "info-position")
+                    position_text = position_element.text.strip()
+                    #print(f"Position {i + 1}: {position_text}")
+                    info[f"Position {i + 1}"] = position_text
+                except NoSuchElementException:
+                    print("Work position not found")
+
+                try:
+                    company_element = div_element.find_element(By.CLASS_NAME, "info-text")
+                    company_text = company_element.text.strip()
+                    #print(f"Company {i + 1}: {company_text}")
+                    info[f"Company {i + 1}"] = company_text
+                except NoSuchElementException:
+                    print("Company not found")
+
+                try:
+                    duration_element = div_element.find_element(By.CLASS_NAME, "info-sub-title")
+                    duration_text = duration_element.text.strip()
+                    #print(f"Duration {i + 1}: {duration_text}")
+                    info[f"Duration {i + 1}"] = duration_text
+                except:
+                    print("Duration not found")
+
+                try:
+                    job_details_element = div_element.find_element(By.CLASS_NAME, "des-content")
+                    job_details_text = job_details_element.text.strip()
+                    #print(f"Job Details {i + 1}: {job_details_text}")
+                    info[f"Job Details {i + 1}"] = job_details_text
+                except:
+                    print("Job Details not found")
+
+                try:
+                    job_keywords_element = div_element.find_element(By.CSS_SELECTOR, "div.list-group-item-text.tag-list")
+                    job_keywords = job_keywords_element.find_elements(By.CSS_SELECTOR, "div.exp_tag_bg.exp_tag_text")
+                    job_keywords_text = ""
+
+                    for keyword in job_keywords:
+                        job_keywords_text = job_keywords_text + keyword.text.strip() + ","
+    
+                    
+                    print(f"Job Keywords {i + 1}: {job_keywords_text}")
+                    info[f"Job Keywords {i + 1}"] = job_keywords_text[:-1]
+                except:
+                    print("Job Keywords not found")
+    
+        except NoSuchElementException:
+            print("Work Details not found")
+
+        #Extract Personal Education Background
+        try:
+            ul_element = self.driver.find_element(By.XPATH, "//span[contains(text(), '教育经历')]/ancestor::div[@class='p-b-5 p-t p-x gray-bg-f2f6f7 text-info']/following-sibling::ul[@class='list-group m-b-0']")
+            div_elements = ul_element.find_elements(By.XPATH, ".//div[contains(@class, 'sc-cpmLhU')]")
+
+            for i in range(min(3, len(div_elements))):
+                div_element = div_elements[i]
+                try:
+                    university_element = div_element.find_element(By.CLASS_NAME, "info-text")
+                    university_text = university_element.text.strip()
+                    #print(f"University {i + 1}: {university_text}")
+                    info[f"University {i + 1}"] = university_text
+                except NoSuchElementException:
+                    print("University not found")
+
+                try:
+                    university_details = div_element.find_element(By.CLASS_NAME, "info-sub-title")
+                    meta_details = university_details.text.split('，')
+                    university_time_text = meta_details[0].strip()
+                    #print(f"University Time {i + 1}: {university_time_text}")
+                    info[f"University Time {i + 1}"] = university_time_text
+                except NoSuchElementException:
+                    print("University Time not found")
+
+                try:
+                    university_details = div_element.find_element(By.CLASS_NAME, "info-sub-title")
+                    meta_details = university_details.text.split('，')
+                    major_text = meta_details[1].strip()
+                    #print(f"Major {i + 1}: {major_text}")
+                    info[f"Major {i + 1}"] = major_text
+                except NoSuchElementException:
+                    print("Major not found")
+
+                try:
+                    university_details = div_element.find_element(By.CLASS_NAME, "info-sub-title")
+                    meta_details = university_details.text.split('，')
+
+                    if len(meta_details) > 2:
+                        degree_text = meta_details[2].strip()
+                    else:
+                        degree_text = meta_details[1].strip()
+                    
+                    #print(f"Degree {i + 1}: {degree_text}")
+                    info[f"Degree {i + 1}"] = degree_text
+                except NoSuchElementException:
+                    print("Degree not found")
+
+        except NoSuchElementException:
+            print("Education Details not found")
 
         return info
     
     def click_and_extract(self):
-        candidates = self.driver.find_elements(By.XPATH, '//*[@id="react_app"]/div/div/div[2]/div/div[1]/div[2]/div/div/div/ul')
+        candidates = self.driver.find_elements(By.XPATH, "//ul[contains(@class, 'list-group')]//div[starts-with(@id, 'contactcard')]//*[contains(@class, 'Tappable-inactive list-group-item')]")
         for candidate in candidates:
-            # Click on the candidate's profile link
-            try:
-                candidate.click()
-                time.sleep(2)  # Wait for the profile to load
-            except NoSuchElementException:
-                print("Profile link not found")
-                continue  # Move to the next candidate if profile link not found
+            # Scroll to the candidate element
+            self.driver.execute_script("arguments[0].scrollIntoView(true);", candidate)
+            self.driver.execute_script("window.scrollBy(0, -100);")
+
+            candidate.click()
+
+            # Switch to the new tab
+            new_window = self.driver.window_handles[-1]
+            self.driver.switch_to.window(new_window)
+
+            time.sleep(2)
 
             # Extract the information from the profile page
             try:
                 candidate_info = self.extract_info()
-                self.candidate_df = self.candidate_df.append(candidate_info, ignore_index=True)
+                self.candidate_df = pd.concat([self.candidate_df, pd.DataFrame([candidate_info])], ignore_index=True)
             except Exception as e:
                 print(f"Failed to extract information: {e}")
 
-            # Go back to the search results page
-            self.driver.execute_script("window.history.go(-1)")
-            time.sleep(2)  # Wait for the page to load
+            # Close the new tab
+            self.driver.close()
+
+            # Switch back to the original tab
+            self.driver.switch_to.window(self.driver.window_handles[0])
+
+            time.sleep(1)  # Wait for the page to load
 
         # Export DataFrame to Excel file
         output_file_path = "C:/AnyHelper/MaiMai_auto/output/candidates_info.xlsx"
@@ -192,23 +299,26 @@ class MaiMaiScraper:
         print(f"Exported candidate information to {output_file_path}")
 
     def run(self):
+
         self.driver.maximize_window()
     
         self.login_ez()
+
         time.sleep(1)
+
         self.wait_180s.until(EC.url_contains("https://maimai.cn/"))
         self.upload_link()
 
         time.sleep(1)
 
         self.scroll_and_load()
+
         time.sleep(1)
+
         self.click_and_extract()
+
         time.sleep(10)
 
-        
-    
-        
 
 if __name__ == "__main__":
     # Specify the necessary parameters

@@ -15,13 +15,15 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 class MaiMaiScraper:
-    def __init__(self, filter_page = None, tag = None, max_candidates = None):        
+    def __init__(self, filter_page = None, tag = "MaiMai", max_candidates = 100, cookies_path = None):        
         chrome_options = webdriver.ChromeOptions()
-
+    
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        #self.driver = webdriver.Chrome()
         self.login_url = "https://maimai.cn/platform/login"
         self.filter_page = filter_page
         self.tag = tag
+        self.cookies_path = cookies_path
         self.max_candidates = max_candidates
         self.cookies = []
         self.wait_10s = WebDriverWait(self.driver, 10, 0.5)
@@ -44,7 +46,15 @@ class MaiMaiScraper:
     def login_ez(self):
         self.driver.get(self.login_url)
 
-        if os.path.exists('cookies.pkl'):
+        if self.cookies_path:
+            cookies = load_cookies_path(self.cookies_path)
+            print(f"Loaded cookies from {self.cookies_path}")
+            self.driver.delete_all_cookies()
+            for cookie in cookies:
+                self.driver.add_cookie(cookie)
+            self.driver.refresh()
+
+        elif os.path.exists('cookies.pkl'):
             cookies = load_cookies()
             self.driver.delete_all_cookies()
             for cookie in cookies:
@@ -284,7 +294,8 @@ class MaiMaiScraper:
             time.sleep(1)  # Wait for the page to load
 
         # Export DataFrame to Excel file
-        output_file_path = f"C:/AnyHelper/MaiMai_auto/output/{self.tag}candidates_info.xlsx"
+        current_dir = os.getcwd()
+        output_file_path = f"{current_dir}/{self.tag}_candidates_info.xlsx"
         self.candidate_df.to_excel(output_file_path, index=False)
         print(f"Exported candidate information to {output_file_path}")
 

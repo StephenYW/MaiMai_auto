@@ -116,14 +116,15 @@ class MainGUI:
      def open_cookies_management(self):
         cookies_window = tk.Toplevel(self.root)
         cookies_window.title("Cookies Management")
-        cookies_window.geometry("600x300")
-        cookies_window.configure(bg="gray55")
+        cookies_window.geometry("800x400")  # Increased window size
+
+        cookies_window.grab_set()
 
         # Cookies input text box
-        cookies_label = ctk.CTkLabel(cookies_window, text="Path to your cookies:")
+        cookies_label = tk.Label(cookies_window, text="Path to your cookies:", font=("Helvetica", 24))
         cookies_label.pack(padx=20, pady=(20, 10), anchor="w")
 
-        cookies_text = ctk.CTkEntry(cookies_window, width=50)
+        cookies_text = tk.Entry(cookies_window, width=70, font=("Helvetica", 24))  # Increased entry width and font size
         cookies_text.pack(padx=20, pady=10, anchor="w", fill="x")
 
         # Browse button to select cookies file
@@ -133,11 +134,14 @@ class MainGUI:
                 cookies_text.delete(0, tk.END)
                 cookies_text.insert(tk.END, file_path)
 
-        browse_button = ctk.CTkButton(cookies_window, text="Browse", command=browse_file)
+        browse_button = tk.Button(cookies_window, text="Browse", command=browse_file, font=("Helvetica", 24))  # Increased button font size
         browse_button.pack(side="left", padx=(20, 10), pady=(0, 20))
 
         # Load cookies button
-        load_button = ctk.CTkButton(cookies_window, text="Load Cookies", command=lambda: self.process_cookies(cookies_text.get(), cookies_window))
+        def load_cookies():
+            self.process_cookies(cookies_text.get(), cookies_window)
+
+        load_button = tk.Button(cookies_window, text="Load Cookies", command=load_cookies, font=("Helvetica", 24))  # Increased button font size
         load_button.pack(side="left", padx=(0, 20), pady=(0, 20))
 
         cookies_window.mainloop()

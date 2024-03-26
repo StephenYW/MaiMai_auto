@@ -1,6 +1,7 @@
 import os
 import time
 import pandas as pd
+import sys
 from tkinter import messagebox
 from selenium import webdriver
 from selenium.common import TimeoutException, NoSuchElementException
@@ -9,13 +10,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 
-from util.cookies_util import *
+from cookies_util import *
 
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-class MaiMaiScraper:
-    def __init__(self, filter_page = None, tag = "MaiMai", max_candidates = 100, cookies_path = None, filter = None):        
+class MaiMaiFilter:
+    def __init__(self, filter_page = None, tag = "MaiMai", max_candidates = 100, cookies_path = None):        
         chrome_options = webdriver.ChromeOptions()
     
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
@@ -26,7 +27,6 @@ class MaiMaiScraper:
         self.tag = tag
         self.cookies_path = cookies_path
         self.max_candidates = max_candidates
-        self.filter = filter
         self.cookies = []
         self.wait_10s = WebDriverWait(self.driver, 10, 0.5)
         self.wait_180s = WebDriverWait(self.driver, 180, 0.5)
@@ -45,54 +45,58 @@ class MaiMaiScraper:
         print(f"Link uploaded: {self.filter_page}")
         time.sleep(5)  # wait for the page to load
 
-    def login_ez(self):
+    def login_filter(self):
         self.driver.get(self.login_url)
-
+        
         if self.cookies_path:
             cookies = load_cookies_path(self.cookies_path)
             print(f"Loaded cookies from {self.cookies_path}")
             self.driver.delete_all_cookies()
             for cookie in cookies:
                 self.driver.add_cookie(cookie)
-            self.upload_link()
+            self.driver.refresh()
 
         elif os.path.exists('cookies.pkl'):
+       
             cookies = load_cookies()
             self.driver.delete_all_cookies()
             for cookie in cookies:
                 self.driver.add_cookie(cookie)
+            self.driver.refresh()
 
-            self.upload_link()
-            time.sleep(3)
-
-            if self.login_url in self.driver.current_url:
+            """
+            if "https://maimai.cn/feed_list" not in self.driver.current_url:
+                self.driver.get(self.login_url)
                 print("Cookies are expired. Please log in manually or stop the program and upload new cookies.")
-                self.wait_180s.until(EC.url_contains(self.filter_page))
+                self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
                 self.cookies = self.driver.get_cookies()
                 save_cookies(self.cookies)
-                
-    
+            """
+
         else:
+            print("3333333333333333333")
             self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
             self.cookies = self.driver.get_cookies()
             save_cookies(self.cookies)
-            self.upload_link()
 
         print("登录成功 - login success")
 
     def quit(self):
         self.driver.quit()
 
-    def scroll_and_load(self):
-        #scrollable_div = self.driver.find_element(By.XPATH, '//div[@data-x--search-results-container]')
+    def scroll_load_filter(self):
+        # Find the scroll box element
+        scroll_box = self.driver.find_element(By.CLASS_NAME, "list___2Tijr")
+
         current_count = 0
         while True:
-            # scroll down 1000 pixels
-            self.driver.execute_script('window.scrollBy(0, 1000)')
-            time.sleep(3)  # Wait for the new items to load
+            # Scroll the box down by 1000 pixels
+            self.driver.execute_script('arguments[0].scrollTop += 1000;', scroll_box)
+            time.sleep(3)  # Wait for new items to load
 
             # Count the number of loaded items
-            new_count = len(self.driver.find_elements(By.XPATH, "//ul[contains(@class, 'list-group')]//div[starts-with(@id, 'contactcard')]"))
+            new_count = len(self.driver.find_elements(By.XPATH, "//div[@class='card___3gwOI']"))
+
             if new_count == current_count:
                 # If no new items loaded, exit the loop
                 break
@@ -103,7 +107,8 @@ class MaiMaiScraper:
                 break
 
         print(f"Loaded {current_count} people.")
-    
+        
+    #TODO: Update
     def extract_info(self):
         info = {
             "Name": "",
@@ -318,37 +323,32 @@ class MaiMaiScraper:
 
         self.driver.maximize_window()
     
-        self.login_ez()
+        self.login_filter()
 
         time.sleep(1)
 
+        self.wait_180s.until(EC.url_contains("https://maimai.cn/"))
         self.upload_link()
 
+        time.sleep(5)
+
+        #self.scroll_load_filter()
+
         time.sleep(1)
 
-        self.scroll_and_load()
+        #self.click_and_extract()
 
-        time.sleep(1)
-
-        self.click_and_extract()
-
-        time.sleep(10)
-    
-        self.quit()
-    
+        #time.sleep(10)
 
 
-
-"""
 if __name__ == "__main__":
     #Specify the necessary parameters
-    filter_page = "https://maimai.cn/web/search_center?type=contact&query=Bytedance&highlight=true"
+    filter_page = "https://maimai.cn/ent/talents/discover/search_v2"
     tag = "AnyHelper"
     max_candidates = 100
 
     # Create an instance of MaiMaiScraper
-    scraper = MaiMaiScraper(filter_page=filter_page, tag = tag + "_", max_candidates=max_candidates)
+    filter = MaiMaiFilter(filter_page=filter_page, tag = tag + "_", max_candidates=max_candidates)
 
     # Run the scraper
-    scraper.run()
-"""
+    filter.run()

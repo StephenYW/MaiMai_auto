@@ -15,7 +15,7 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 class MaiMaiScraper:
-    def __init__(self, filter_page = None, tag = "MaiMai", max_candidates = 100, cookies_path = None, filter = None):        
+    def __init__(self, filter_page = None, tag = "MaiMai", max_candidates = 100, cookies_path = None, filter = None, excel_path = None):        
         chrome_options = webdriver.ChromeOptions()
     
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
@@ -23,7 +23,10 @@ class MaiMaiScraper:
 
         self.login_url = "https://maimai.cn/platform/login"
         self.filter_page = filter_page
+        self.excel_keywords = []
+        self.keywords_url = []
         self.tag = tag
+        self.excel_path = excel_path
         self.cookies_path = cookies_path
         self.max_candidates = max_candidates
         self.filter = filter
@@ -40,10 +43,10 @@ class MaiMaiScraper:
             "University 2", "University Time 2", "Major 2", "Degree 2"
         ])
 
-    def upload_link(self):
-        self.driver.get(self.filter_page)
-        print(f"Link uploaded: {self.filter_page}")
-        time.sleep(5)  # wait for the page to load
+    def upload_link(self, link):
+        self.driver.get(link)
+        print(f"Link uploaded: {link}")
+        time.sleep(4)  # wait for the page to load
 
     def login_ez(self):
         self.driver.get(self.login_url)
@@ -54,7 +57,7 @@ class MaiMaiScraper:
             self.driver.delete_all_cookies()
             for cookie in cookies:
                 self.driver.add_cookie(cookie)
-            self.upload_link()
+            
 
         elif os.path.exists('cookies.pkl'):
             cookies = load_cookies()
@@ -62,12 +65,13 @@ class MaiMaiScraper:
             for cookie in cookies:
                 self.driver.add_cookie(cookie)
 
-            self.upload_link()
             time.sleep(3)
-
+            self.driver.get("https://maimai.cn/feed_list")
+            time.sleep(3)
+            print(self.driver.current_url)
             if self.login_url in self.driver.current_url:
                 print("Cookies are expired. Please log in manually or stop the program and upload new cookies.")
-                self.wait_180s.until(EC.url_contains(self.filter_page))
+                self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
                 self.cookies = self.driver.get_cookies()
                 save_cookies(self.cookies)
                 
@@ -76,9 +80,33 @@ class MaiMaiScraper:
             self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
             self.cookies = self.driver.get_cookies()
             save_cookies(self.cookies)
-            self.upload_link()
 
         print("登录成功 - login success")
+
+    def extract_keywords_from_excel(self, excel_path):
+        try:
+            # Read the Excel file
+            df = pd.read_excel(excel_path)
+
+            # Extract keywords from the first column 
+            keywords = df.iloc[:, 0].tolist()
+
+            # Append the extracted keywords to self.excel_keywords
+            self.excel_keywords.extend(keywords)
+
+        except Exception as e:
+            print(f"Error reading Excel file: {e}")
+
+    def convert_keywords_to_urls(self,excel_keywords):
+        keyword_urls = []
+        for keyword in excel_keywords:
+            # Replace spaces with '%20'
+            keyword_url = keyword.replace(" ", "%20")
+            # Create the URL format
+            keyword_url = f"https://maimai.cn/web/search_center?type=contact&query={keyword_url}&highlight=true"
+            # Append to the keyword_urls array
+            keyword_urls.append(keyword_url)
+        return keyword_urls
 
     def quit(self):
         self.driver.quit()
@@ -273,7 +301,7 @@ class MaiMaiScraper:
     
     def click_and_extract(self):
         candidates = self.driver.find_elements(By.XPATH, "//ul[contains(@class, 'list-group')]//div[starts-with(@id, 'contactcard')]//*[contains(@class, 'Tappable-inactive list-group-item')]")
-        candidate_count = 0
+        candidate_count = 1
         for candidate in candidates:
             #Max candidates to be searched
             if candidate_count > self.max_candidates:
@@ -295,6 +323,7 @@ class MaiMaiScraper:
             try:
                 candidate_info = self.extract_info()
                 self.candidate_df = pd.concat([self.candidate_df, pd.DataFrame([candidate_info])], ignore_index=True)
+                candidate_count += 1
             except Exception as e:
                 print(f"Failed to extract information: {e}")
 
@@ -306,7 +335,7 @@ class MaiMaiScraper:
 
             time.sleep(1)  # Wait for the page to load
 
-        # Export DataFrame to Excel file
+    def export_df_to_excel(self):
         current_dir = os.getcwd()
         output_file_path = f"{current_dir}/{self.tag}_candidates_info.xlsx"
         self.candidate_df.to_excel(output_file_path, index=False)
@@ -320,23 +349,30 @@ class MaiMaiScraper:
     
         self.login_ez()
 
-        time.sleep(1)
+        if(self.excel_path):
+            self.extract_keywords_from_excel(self.excel_path)
+            self.keywords_url = self.convert_keywords_to_urls(self.excel_keywords)
 
-        self.upload_link()
+            for url in self.keywords_url:
+                self.upload_link(url)
+                time.sleep(2)
+                self.scroll_and_load()
+                time.sleep(1)
+                self.click_and_extract()
+                time.sleep(5)
+        
+            self.export_df_to_excel()
+            time.sleep(5)
+            self.quit()
 
-        time.sleep(1)
-
-        self.scroll_and_load()
-
-        time.sleep(1)
-
-        self.click_and_extract()
-
-        time.sleep(10)
-    
-        self.quit()
-    
-
+        else:
+            self.upload_link(self.filter_page)
+            time.sleep(2)
+            self.scroll_and_load()
+            time.sleep(1)
+            self.click_and_extract()
+            time.sleep(10)
+            self.quit()
 
 
 """

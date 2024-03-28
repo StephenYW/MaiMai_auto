@@ -24,28 +24,38 @@ class MainGUI(ctk.CTk):
 
         self.maimai_scraper = None
         self.maimai_scraper_thread = None
+        self.current_dir = os.getcwd()
 
         self.submitted_url_default = "Paste the MaiMai URL here"
         self.submitted_tag_default = "MaiMai"
         self.submitted_max_candidates_default = 100
-        self.submitted_excel_default = "Paste the path to the destination folder of the Excel file"
+        self.submitted_excel_default = "Paste the path to the Excel file you would like to input"
+        self.submitted_filter_folder_default = self.current_dir
+        self.submitted_filter_session_default = "Paste the path to the session file you would like to input"
         self.submitted_url = ""
         self.submitted_excel = ""
+        self.submitted_filter_folder = ""
+        self.submitted_filter_session = ""
         self.submitted_tag = ""
         self.submitted_max_candidates = ""
         self.cookies_path = ""
         self.title("MaiMai Auto Scraper")
-        self.geometry("700x450")
+        self.geometry("800x500")
         self._set_appearance_mode("system")
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=0)
+        self.grid_columnconfigure(1, weight=1)
 
         #Images
         # load images with light and dark mode image
         self.image_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_images")
-        self.logo_image = ctk.CTkImage(Image.open(os.path.join(self.image_path, "maimai_logo.png")), size=(26, 26))
+        self.logo_image = ctk.CTkImage(Image.open(os.path.join(self.image_path, "maimai_logo.png")), size=(32, 32))
 
-        self.url_image = ctk.CTkImage(dark_image=Image.open(os.path.join(self.image_path, "url_logo.png")), size=(20, 20))
-        self.excel_image = ctk.CTkImage(dark_image=Image.open(os.path.join(self.image_path, "Excel_logo.png")), size=(20, 20))
-        self.filter_image = ctk.CTkImage(dark_image=Image.open(os.path.join(self.image_path, "filter_logo.png")), size=(20, 20))
+        self.url_image = ctk.CTkImage(dark_image=Image.open(os.path.join(self.image_path, "url_logo.png")), size=(24, 24))
+        self.excel_image = ctk.CTkImage(dark_image=Image.open(os.path.join(self.image_path, "Excel_logo.png")), size=(24, 24))
+        self.filter_image = ctk.CTkImage(dark_image=Image.open(os.path.join(self.image_path, "filter_logo.png")), size=(24, 24))
 
         # create navigation frame
         self.navigation_frame = ctk.CTkFrame(self, corner_radius=5)
@@ -55,19 +65,15 @@ class MainGUI(ctk.CTk):
         self.navigation_frame_label = ctk.CTkLabel(self.navigation_frame, text="  MaiMai Auto", image=self.logo_image,
                                                              compound="left", font=ctk.CTkFont(size=15, weight="bold"))
         self.navigation_frame_label.grid(row=0, column=0, padx=20, pady=20)
-        
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_columnconfigure(0, weight=0)
-        self.grid_columnconfigure(1, weight=1)
 
         # Create constraints frame
         self.constraints_frame = ctk.CTkFrame(self, corner_radius=5)
-        self.constraints_frame.grid(row=1, column=1, padx=20, pady=20, sticky="w")
+        self.constraints_frame.grid(row=1, column=1, padx=20, pady=20, sticky="ew")
         #self.constraints_frame.grid_columnconfigure(0, weight=1)
         self.constraints_frame.grid_rowconfigure(0, weight=0)
         self.constraints_frame.grid_columnconfigure(0, weight=1)
         self.constraints_frame.grid_columnconfigure(1, weight=1)
+
         #URL frame
         self.url_frame = ctk.CTkFrame(self, corner_radius=5, fg_color="transparent")
         self.url_frame.grid(row=0, column=1)
@@ -76,10 +82,14 @@ class MainGUI(ctk.CTk):
         self.url_frame.grid_columnconfigure(1, weight=1)
 
         # create excel frame
-        self.excel_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.excel_frame = ctk.CTkFrame(self, corner_radius=5, fg_color="transparent")
+        self.excel_frame.grid(row=0, column=1)
+        self.excel_frame.grid_columnconfigure(1, weight=1)
 
         # create filter frame
-        self.filter_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.filter_frame = ctk.CTkScrollableFrame(self, corner_radius=5, fg_color="transparent")
+        self.filter_frame.grid(row=0, column=1)
+        self.filter_frame.grid_columnconfigure(1, weight=1)
         
 
         """
@@ -90,17 +100,17 @@ class MainGUI(ctk.CTk):
         self.line_frame2.place(x=10, y=245)
         """
 
-        self.url_button = ctk.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Home",
+        self.url_button = ctk.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="URL",
                                                    fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
                                                    image=self.url_image, anchor="w", command=self.url_button_event)
         self.url_button.grid(row=1, column=0, sticky="ew")
 
-        self.excel_button = ctk.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Frame 2",
+        self.excel_button = ctk.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Excel",
                                                       fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
                                                       image=self.excel_image, anchor="w", command=self.excel_button_event)
         self.excel_button.grid(row=2, column=0, sticky="ew")
 
-        self.filter_button = ctk.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Frame 3",
+        self.filter_button = ctk.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Filter",
                                                       fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
                                                       image=self.filter_image, anchor="w", command=self.filter_button_event)
         self.filter_button.grid(row=3, column=0, sticky="ew")
@@ -111,7 +121,7 @@ class MainGUI(ctk.CTk):
         # Max candidates input
         self.max_candidates_label = ctk.CTkLabel(self.constraints_frame, text="Max Candidates:")
         self.max_candidates_label.grid(row=0, column=0, padx=20, pady=10, sticky="w")
-        self.max_candidates_entry = ctk.CTkEntry(self.constraints_frame, width=300)  
+        self.max_candidates_entry = ctk.CTkEntry(self.constraints_frame, width=400)  
         self.max_candidates_entry.insert(ctk.END, self.submitted_max_candidates_default)
         self.max_candidates_entry.grid(row=0, column=1, padx=20, pady=10, sticky="w")
         self.max_candidates_entry.bind('<FocusIn>', self.on_entry_click)
@@ -119,30 +129,32 @@ class MainGUI(ctk.CTk):
         # Tag input
         self.tag_label = ctk.CTkLabel(self.constraints_frame, text="File Tag:")
         self.tag_label.grid(row=1, column=0, padx=20, pady=10, sticky="w")
-        self.tag_entry = ctk.CTkEntry(self.constraints_frame, width=300)  
+        self.tag_entry = ctk.CTkEntry(self.constraints_frame, width=400)  
         self.tag_entry.insert(ctk.END, self.submitted_tag_default)
         self.tag_entry.grid(row=1, column=1, padx=20, pady=10, sticky="w")
         self.tag_entry.bind('<FocusIn>', self.on_entry_click)
 
         
         # URL input
+        self.url_label = ctk.CTkLabel(self.url_frame, text="Single URL input: ", fg_color="transparent", font=ctk.CTkFont(size=14, weight="bold"))
+        self.url_label.grid(row=0, column=0, padx=20, pady=5, sticky="w")
         self.url_entry = ctk.CTkEntry(self.url_frame, width=480)  
         self.url_entry.insert(ctk.END, self.submitted_url_default)
-        self.url_entry.grid(row=0, column=0, padx=20, pady=10, sticky="ew")
+        self.url_entry.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
         self.url_entry.bind('<FocusIn>', self.on_entry_click)
 
         # Start button
         self.start_button = ctk.CTkButton(self.url_frame, text="Start", command=self.submit_input)
-        self.start_button.grid(row=1, column=0, padx=20, pady=10, sticky="w")
+        self.start_button.grid(row=2, column=0, padx=20, pady=10, sticky="w")
 
         # Stop button
         self.stop_button = ctk.CTkButton(self.url_frame, text="Stop", command=self.stop_run)
-        self.stop_button.grid(row=1, column=0, padx=20, pady=10)
+        self.stop_button.grid(row=2, column=0, padx=20, pady=10)
         self.stop_button.configure(state=ctk.DISABLED)
 
         # Text box to show information
         self.text_box = ctk.CTkTextbox(self.url_frame)
-        self.text_box.grid(row=2, column=0, columnspan=2, padx=20, pady=10, sticky="nsew")
+        self.text_box.grid(row=3, column=0, columnspan=2, padx=20, pady=10, sticky="nsew")
 
         # Redirect print to text box
         sys.stdout = ConsoleDirector(self.text_box)
@@ -152,37 +164,69 @@ class MainGUI(ctk.CTk):
         self.cookies_button = ctk.CTkButton(self.navigation_frame, text="Cookies Management", command=self.open_cookies_management)
         self.cookies_button.grid(row=6, column=0, padx=20, pady=20, sticky="s")
 
-        
-        """
-        # Excel file label
-        self.excel_label = ctk.CTkLabel(self.root, text="Excel file label input: ")
-        self.excel_label.grid(row=5, column=0, padx=20, pady=10, sticky="w")
-        
+        #Excel frame
+
+        self.excel_label = ctk.CTkLabel(self.excel_frame, text="Excel File input: ", fg_color="transparent", font=ctk.CTkFont(size=14, weight="bold"))
+        self.excel_label.grid(row=0, column=0, padx=20, pady=5, sticky="w")
+
         # Text bar to show user's entry for Excel file path
-        self.excel_entry_label = ctk.CTkLabel(self.root, text="Excel File Path:")
-        self.excel_entry_label.grid(row=6, column=0, padx=20, pady=10, sticky="w")
-        self.excel_entry = ctk.CTkEntry(self.root, width=600)
+        self.excel_entry = ctk.CTkEntry(self.excel_frame, width=480)
         self.excel_entry.insert(ctk.END, self.submitted_excel_default)
-        self.excel_entry.grid(row=6, column=1, padx=20, pady=10, sticky="ew")
+        self.excel_entry.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
         self.excel_entry.bind('<FocusIn>', self.on_entry_click)
         
 
         # Browse button to select Excel file
-        self.browse_excel_button = ctk.CTkButton(self.root, text="Browse", command=self.browse_excel_file)
-        self.browse_excel_button.grid(row=7, column=0, padx=10, pady=10)
+        self.browse_excel_button = ctk.CTkButton(self.excel_frame, text="Browse", command=self.browse_excel_file)
+        self.browse_excel_button.grid(row=2, column=0, padx=20, pady=10, sticky="w")
 
         # Start button
-        self.start_button_excel = ctk.CTkButton(self.root, text="Start", command=self.submit_input_excel)
-        self.start_button_excel.grid(row=8, column=0, padx=10, pady=10)
+        self.start_button_excel = ctk.CTkButton(self.excel_frame, text="Start", command=self.submit_input_excel)
+        self.start_button_excel.grid(row=2, column=0, padx=10, pady=10)
 
         # Stop button for Excel
-        self.stop_button_excel = ctk.CTkButton(self.root, text="Stop", command=lambda: self.stop_run_excel())
-        self.stop_button_excel.grid(row=8, column=1, padx=10, pady=10, sticky="w")
+        self.stop_button_excel = ctk.CTkButton(self.excel_frame, text="Stop", command=lambda: self.stop_run_excel())
+        self.stop_button_excel.grid(row=2, column=0, padx=10, pady=10, sticky="e")
         self.stop_button_excel.configure(state=ctk.DISABLED)
+
+        # Text box to show information
+        self.text_box_excel = ctk.CTkTextbox(self.excel_frame)
+        self.text_box_excel.grid(row=3, column=0, columnspan=3, padx=20, pady=10, sticky="nsew")
+
+        # Redirect print to text box
+        sys.stdout = ConsoleDirector(self.text_box_excel)
+        sys.stderr = ConsoleDirector(self.text_box_excel)
+
+        # Create constraints frame
+        self.filter_save_frame = ctk.CTkFrame(self.filter_frame, corner_radius=5)
+        self.filter_save_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+
+        # Text bar to show user's entry for filter folder save file path
+        self.filter_folder_entry = ctk.CTkEntry(self.filter_save_frame, width=480)
+        self.filter_folder_entry.insert(ctk.END, self.submitted_filter_folder_default)
+        self.filter_folder_entry.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        self.filter_folder_entry.bind('<FocusIn>', self.on_entry_click)
+
+
+        # Browse button to select Excel file
+        self.browse_filter_folder_button = ctk.CTkButton(self.filter_save_frame, text="Browse", command=self.browse_filter_folder)
+        self.browse_filter_folder_button.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+
+        # Start button
+        self.filter_save_button = ctk.CTkButton(self.filter_save_frame, text="Save", command=self.submit_input_filter_save)
+        self.filter_save_button.grid(row=1, column=0, padx=10, pady=10)
+
+        # Text box to show information
+        self.text_box_filter = ctk.CTkTextbox(self.filter_frame)
+        self.text_box_filter.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+
+        # Redirect print to text box
+        sys.stdout = ConsoleDirector(self.text_box_filter)
+        sys.stderr = ConsoleDirector(self.text_box_filter)
         
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
-    """
+    
      def select_frame_by_name(self, name):
         # set button color for selected button
         self.url_button.configure(fg_color=("gray75", "gray25") if name == "home" else "transparent")
@@ -227,12 +271,23 @@ class MainGUI(ctk.CTk):
         self.maimai_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.run())
         self.maimai_scraper_thread.start()
 
+     def process_filter(self, filter_folder):
+        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_instance = True, filter_folder = filter_folder)
+        
+
     # Browse button to select Excel file
      def browse_excel_file(self):
         file_path = filedialog.askopenfilename(title="Select Excel File", filetypes=[("Excel Files", "*.xlsx;*.xls"), ("All files", "*.*")])
         if file_path:
             self.excel_entry.delete(0, tk.END)
             self.excel_entry.insert(tk.END, file_path)
+
+     def browse_filter_folder(self):
+        folder_path = filedialog.askdirectory(title="Select Folder")
+        if folder_path:
+            # Do something with the selected folder path
+            self.filter_folder_entry.delete(0, tk.END)
+            self.filter_folder_entry.insert(tk.END, folder_path)
 
      def on_closing(self):
         try:
@@ -269,6 +324,11 @@ class MainGUI(ctk.CTk):
             self.process_excel(self.submitted_excel)
          else:
             print("Please input an Excel file path")
+
+     def submit_input_filter_save(self):
+        self.submitted_filter_folder = self.filter_folder_entry.get()
+
+        self.process_filter_save(self.submitted_filter_folder)
 
      def open_cookies_management(self):
         cookies_window = tk.Toplevel(self)

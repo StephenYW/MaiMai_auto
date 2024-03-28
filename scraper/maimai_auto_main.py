@@ -15,21 +15,35 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 class MaiMaiScraper:
-    def __init__(self, filter_page = None, tag = "MaiMai", max_candidates = 100, cookies_path = None, filter = None, excel_path = None):        
+    def __init__(self, url_page = None, 
+                 tag = "MaiMai", 
+                 max_candidates = 100, 
+                 cookies_path = None, 
+                 excel_path = None,
+                 filter_instance = False,
+                 filter_folder = None,
+                 filter_session = None):        
         chrome_options = webdriver.ChromeOptions()
-    
+        #chrome_options.add_argument("--headless")
+        #chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
+
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-        chrome_options.add_argument("--headless")
 
         self.login_url = "https://maimai.cn/platform/login"
-        self.filter_page = filter_page
+        self.filter_page = "https://maimai.cn/ent/talents/discover/search_v2"
+        self.url_page = url_page
         self.excel_keywords = []
         self.keywords_url = []
         self.tag = tag
         self.excel_path = excel_path
+        self.filter_instance = filter_instance
+        self.filter_folder = filter_folder
+        self.filter_session = filter_session
         self.cookies_path = cookies_path
         self.max_candidates = max_candidates
-        self.filter = filter
         self.cookies = []
         self.wait_10s = WebDriverWait(self.driver, 10, 0.5)
         self.wait_180s = WebDriverWait(self.driver, 180, 0.5)
@@ -49,7 +63,11 @@ class MaiMaiScraper:
         time.sleep(4)  # wait for the page to load
 
     def login_ez(self):
-        self.driver.get(self.login_url)
+
+        if(self.filter_instance == False):
+            self.driver.get(self.login_url)
+        else:
+            self.driver.get(self.filter_page)
 
         if self.cookies_path:
             cookies = load_cookies_path(self.cookies_path)
@@ -66,22 +84,49 @@ class MaiMaiScraper:
                 self.driver.add_cookie(cookie)
 
             time.sleep(3)
-            self.driver.get("https://maimai.cn/feed_list")
-            time.sleep(3)
-            print(self.driver.current_url)
-            if self.login_url in self.driver.current_url:
-                print("Cookies are expired. Please log in manually or stop the program and upload new cookies.")
+
+            if(self.filter_instance == False):
+                self.driver.get("https://maimai.cn/feed_list")
+                
+                time.sleep(3)
+                
+                if self.login_url in self.driver.current_url:
+                    print("Cookies are expired. Please log in manually or stop the program and upload new cookies.")
+                    self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
+                    self.cookies = self.driver.get_cookies()
+                    save_cookies(self.cookies)
+
+            else:
+                self.driver.get(self.filter_page)
+                time.sleep(4)
+                
+                if self.login_url in self.driver.current_url:
+                    print("Cookies are expired. Stop the program and upload new cookies or log in manually.")
+                    time.sleep(3)
+                    self.quit()
+
+        else:
+            print("Please log in manually.")
+
+            if(self.filter_instance == False):
                 self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
                 self.cookies = self.driver.get_cookies()
                 save_cookies(self.cookies)
-                
-    
-        else:
-            self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
-            self.cookies = self.driver.get_cookies()
-            save_cookies(self.cookies)
+                print("Cookies saved.")
+
+            else:
+                self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
+                self.driver.get(self.filter_page)
+                self.cookies = self.driver.get_cookies()
+                save_cookies(self.cookies)
+                print("Cookies saved.")
+            
+
+            
+            
 
         print("登录成功 - login success")
+            
 
     def extract_keywords_from_excel(self, excel_path):
         try:
@@ -346,10 +391,11 @@ class MaiMaiScraper:
     def run(self):
 
         self.driver.maximize_window()
-    
-        self.login_ez()
 
         if(self.excel_path):
+
+            self.login_ez()
+
             self.extract_keywords_from_excel(self.excel_path)
             self.keywords_url = self.convert_keywords_to_urls(self.excel_keywords)
 
@@ -365,8 +411,11 @@ class MaiMaiScraper:
             time.sleep(5)
             self.quit()
 
-        else:
-            self.upload_link(self.filter_page)
+        elif(self.url_page):
+
+            self.login_ez()
+
+            self.upload_link(self.url_page)
             time.sleep(2)
             self.scroll_and_load()
             time.sleep(1)
@@ -374,17 +423,24 @@ class MaiMaiScraper:
             time.sleep(10)
             self.quit()
 
+        elif(self.filter_instance == True and self.filter_session == None):
+            self.login_ez()
+            time.sleep(600)
 
-"""
+        elif(self.filter_instance == True and self.filter_session != None):
+            self.login_ez()
+
+
+
+
 if __name__ == "__main__":
     #Specify the necessary parameters
-    filter_page = "https://maimai.cn/web/search_center?type=contact&query=Bytedance&highlight=true"
+    url_page = "https://maimai.cn/web/search_center?type=contact&query=Bytedance&highlight=true"
     tag = "AnyHelper"
     max_candidates = 100
 
     # Create an instance of MaiMaiScraper
-    scraper = MaiMaiScraper(filter_page=filter_page, tag = tag + "_", max_candidates=max_candidates)
+    scraper = MaiMaiScraper(tag = tag + "_", max_candidates=max_candidates, filter_instance=True, filter_session=None)
 
     # Run the scraper
     scraper.run()
-"""

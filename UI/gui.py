@@ -32,6 +32,7 @@ class MainGUI(ctk.CTk):
         self.submitted_excel_default = "Paste the path to the Excel file you would like to input"
         self.submitted_filter_folder_default = self.current_dir
         self.submitted_filter_session_default = "Paste the path to the session file you would like to input"
+        self.submitted_filter_instance = False
         self.submitted_url = ""
         self.submitted_excel = ""
         self.submitted_filter_folder = ""
@@ -197,7 +198,7 @@ class MainGUI(ctk.CTk):
         sys.stdout = ConsoleDirector(self.text_box_excel)
         sys.stderr = ConsoleDirector(self.text_box_excel)
 
-        # Create constraints frame
+        
         self.filter_save_frame = ctk.CTkFrame(self.filter_frame, corner_radius=5)
         self.filter_save_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
 
@@ -213,12 +214,35 @@ class MainGUI(ctk.CTk):
         self.browse_filter_folder_button.grid(row=1, column=0, padx=10, pady=10, sticky="w")
 
         # Start button
-        self.filter_save_button = ctk.CTkButton(self.filter_save_frame, text="Save", command=self.submit_input_filter_save)
+        self.filter_save_button = ctk.CTkButton(self.filter_save_frame, text="Save", command=self.save_filter)
         self.filter_save_button.grid(row=1, column=0, padx=10, pady=10)
+        self.filter_save_button.configure(state=ctk.DISABLED)
+
+        self.filter_load_frame = ctk.CTkFrame(self.filter_frame, corner_radius=5)
+        self.filter_load_frame.grid(row=1, column=0, padx=20, pady=20, sticky="nsew")
+
+        # Text bar to show user's entry for filter folder save file path
+        self.filter_session_entry = ctk.CTkEntry(self.filter_load_frame, width=480)
+        self.filter_session_entry.insert(ctk.END, self.submitted_filter_session_default)
+        self.filter_session_entry.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        self.filter_session_entry.bind('<FocusIn>', self.on_entry_click)
+
+        self.browse_filter_session_button = ctk.CTkButton(self.filter_load_frame, text="Browse", command=self.browse_filter_session)
+        self.browse_filter_session_button.grid(row=1, column=0, padx=10, pady=10, sticky="w")
 
         # Text box to show information
         self.text_box_filter = ctk.CTkTextbox(self.filter_frame)
         self.text_box_filter.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+
+        # Start button
+        self.start_button_filter = ctk.CTkButton(self.filter_frame, text="Start", command=self.submit_input)
+        self.start_button_filter.grid(row=3, column=0, padx=20, pady=10, sticky="w")
+
+        # Stop button
+        self.stop_button_filter = ctk.CTkButton(self.filter_frame, text="Stop", command=self.stop_run)
+        self.stop_button_filter.grid(row=3, column=0, padx=20, pady=10)
+        self.stop_button_filter.configure(state=ctk.DISABLED)
+
 
         # Redirect print to text box
         sys.stdout = ConsoleDirector(self.text_box_filter)
@@ -260,7 +284,7 @@ class MainGUI(ctk.CTk):
      def process_url(self, url):
         self.start_button.configure(state=ctk.DISABLED)
         self.stop_button.configure(state=ctk.NORMAL)
-        self.maimai_scraper = MaiMaiScraper(filter_page=url, tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path)
+        self.maimai_scraper = MaiMaiScraper(url_page=url, tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path)
         self.maimai_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.run())
         self.maimai_scraper_thread.start()
 
@@ -270,11 +294,7 @@ class MainGUI(ctk.CTk):
         self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, excel_path = excel)
         self.maimai_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.run())
         self.maimai_scraper_thread.start()
-
-     def process_filter(self, filter_folder):
-        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_instance = True, filter_folder = filter_folder)
         
-
     # Browse button to select Excel file
      def browse_excel_file(self):
         file_path = filedialog.askopenfilename(title="Select Excel File", filetypes=[("Excel Files", "*.xlsx;*.xls"), ("All files", "*.*")])
@@ -289,6 +309,12 @@ class MainGUI(ctk.CTk):
             self.filter_folder_entry.delete(0, tk.END)
             self.filter_folder_entry.insert(tk.END, folder_path)
 
+     def browse_filter_session(self):
+         file_path = filedialog.askopenfilename(title="Select JSON File", filetypes=[("JSON Files", "*.json"), ("All files", "*.*")])
+         if file_path:
+             self.filter_session_entry.delete(0, tk.END)
+             self.filter_session_entry.insert(tk.END, file_path)
+
      def on_closing(self):
         try:
             self.maimai_scraper.driver.quit()
@@ -299,7 +325,7 @@ class MainGUI(ctk.CTk):
         sys.exit(0)
 
      def on_entry_click(self, event):
-        if event.widget.get() in [self.submitted_url_default, self.submitted_tag_default, self.submitted_max_candidates_default, self.submitted_excel_default]:
+        if event.widget.get() in [self.submitted_url_default, self.submitted_tag_default, self.submitted_max_candidates_default, self.submitted_excel_default, self.submitted_filter_session_default]:
             event.widget.delete(0, tk.END)
             event.widget.configure(foreground='black') 
 
@@ -325,11 +351,45 @@ class MainGUI(ctk.CTk):
          else:
             print("Please input an Excel file path")
 
-     def submit_input_filter_save(self):
+     def submit_input_filter(self):
         self.submitted_filter_folder = self.filter_folder_entry.get()
+        self.submitted_tag = self.tag_entry.get()
+        self.submitted_max_candidates = self.max_candidates_entry.get()
+        self.submitted_filter_session = self.filter_session_entry.get()
 
-        self.process_filter_save(self.submitted_filter_folder)
+        if self.submitted_filter_session != self.submitted_filter_session_default and self.submitted_filter_session != "":
+            self.process_filter_load(self.submitted_filter_session)
+        else:
+            self.process_filter_save(self.submitted_filter_session)
+        
+     def process_filter_load(self,filter_session):
+        self.start_button_filter.configure(state=ctk.DISABLED)
+        self.stop_button_filter.configure(state=ctk.NORMAL)
 
+        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_instance = True, filter_session = filter_session)
+        self.maimai_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.run())
+        self.maimai_scraper_thread.start()
+
+     def process_filter_save(self, filter_folder):
+        
+        self.start_button_filter.configure(state=ctk.DISABLED)
+        self.stop_button_filter.configure(state=ctk.NORMAL)
+        self.filter_save_button.configure(state=ctk.NORMAL)
+        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_instance = True, filter_folder = filter_folder)
+        self.maimai_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.run())
+        self.maimai_scraper_thread.start()
+
+     def save_filter(self):
+        try:
+            save_session_thread = threading.Thread(target=lambda: self.maimai_scraper.driver.extract_session())
+            save_session_thread.start()
+            close_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.driver.quit())
+            close_scraper_thread.start()
+        finally:
+            self.stop_button_filter.configure(state=ctk.DISABLED)
+            self.start_button_filter.configure(state=ctk.NORMAL)
+            self.filter_save_button.configure(state=ctk.DISABLED)
+    
      def open_cookies_management(self):
         cookies_window = tk.Toplevel(self)
         cookies_window.title("Cookies Management")

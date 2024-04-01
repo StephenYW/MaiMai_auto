@@ -8,6 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
+import json
 
 from util.cookies_util import *
 
@@ -76,7 +77,6 @@ class MaiMaiScraper:
             for cookie in cookies:
                 self.driver.add_cookie(cookie)
             
-
         elif os.path.exists('cookies.pkl'):
             cookies = load_cookies()
             self.driver.delete_all_cookies()
@@ -95,15 +95,16 @@ class MaiMaiScraper:
                     self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
                     self.cookies = self.driver.get_cookies()
                     save_cookies(self.cookies)
-
+                
             else:
                 self.driver.get(self.filter_page)
-                time.sleep(4)
+                time.sleep(3)
                 
                 if self.login_url in self.driver.current_url:
                     print("Cookies are expired. Stop the program and upload new cookies or log in manually.")
                     time.sleep(3)
                     self.quit()
+                    return
 
         else:
             print("Please log in manually.")
@@ -113,19 +114,18 @@ class MaiMaiScraper:
                 self.cookies = self.driver.get_cookies()
                 save_cookies(self.cookies)
                 print("Cookies saved.")
+                
 
             else:
-                self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
-                self.driver.get(self.filter_page)
+                self.wait_180s.until(lambda driver: driver.current_url == "https://maimai.cn/feed_list" or self.filter_page in driver.current_url)
+                if(self.driver.current_url == "https://maimai.cn/feed_list"):
+                    self.driver.get(self.filter_page)
                 self.cookies = self.driver.get_cookies()
                 save_cookies(self.cookies)
                 print("Cookies saved.")
-            
-
-            
-            
-
+                
         print("登录成功 - login success")
+        
             
 
     def extract_keywords_from_excel(self, excel_path):
@@ -388,6 +388,50 @@ class MaiMaiScraper:
 
         messagebox.showinfo("Scrape Completed", "Excel file has been created and exported successfully!")
 
+    def extract_session(self):
+        data = {}
+        items = self.driver.find_elements(By.XPATH, "//div[@class='main___XqiPZ']/div[@class='item___3Zni1']")
+        for i, item in enumerate(items):
+            if i == 0:  # Skip the first item
+                continue
+            key = item.find_element(By.XPATH, ".//div[@class='header___12xvz']/h4[@class='title___2NzLt']").text.strip()
+            values = item.find_elements(By.XPATH, ".//span[@class='value___1ycvM ellipsis']")
+            value_list = [value.text for value in values]
+            data[key] = value_list
+
+        # Specify the file path and name
+        file_path = f"{self.filter_folder}/{self.tag}session.json"
+
+        # Save data to the JSON file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+        print(f"Session extracted and saved to {self.filter_folder}. To extract the candidate info, upload the session.json file and rerun the program")
+        
+    def load_session(self, filter_folder):
+        # Load the session JSON file
+        file_path = f"{filter_folder}/{self.tag}session.json"
+        with open(file_path, 'r', encoding='utf-8') as f:
+            session_data = json.load(f)
+
+        # Iterate through the items and apply the session filters
+        items = self.driver.find_elements(By.XPATH, "//div[@class='main___XqiPZ']/div[@class='item___3Zni1']")
+        for i, item in enumerate(items):
+            if i == 0:  # Skip the first item
+                continue
+            key = item.find_element(By.XPATH, ".//div[@class='header___12xvz']/h4[@class='title___2NzLt']").text.strip()
+            if key not in session_data:
+                continue
+            values = session_data[key]
+            
+            for value in values:
+                add_button = item.find_element(By.XPATH, ".//span[@class='addConditionButton___r9kCF']")
+                add_button.click()
+                time.sleep(1)
+                option = item.find_element(By.XPATH, f".//li[@class='option___1Mabh']/span[text()='{value}']")
+                option.click()
+                time.sleep(1)
+    
     def run(self):
 
         self.driver.maximize_window()
@@ -425,10 +469,16 @@ class MaiMaiScraper:
 
         elif(self.filter_instance == True and self.filter_session == None):
             self.login_ez()
-            time.sleep(600)
+            time.sleep(15)
+            self.extract_session()
+            time.sleep(3)
+            self.quit()
 
         elif(self.filter_instance == True and self.filter_session != None):
             self.login_ez()
+            time.sleep(2)
+            self.load_session(self.filter_folder)
+            time.sleep(600)
 
 
 
@@ -440,7 +490,7 @@ if __name__ == "__main__":
     max_candidates = 100
 
     # Create an instance of MaiMaiScraper
-    scraper = MaiMaiScraper(tag = tag + "_", max_candidates=max_candidates, filter_instance=True, filter_session=None)
+    scraper = MaiMaiScraper(tag = tag + "_", max_candidates=max_candidates, filter_folder= "C:/AnyHelper/MaiMai_auto/scraper/sessions", filter_instance=True, filter_session=True)
 
     # Run the scraper
     scraper.run()

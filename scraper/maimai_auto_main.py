@@ -58,6 +58,17 @@ class MaiMaiScraper:
             "University 2", "University Time 2", "Major 2", "Degree 2"
         ])
 
+        self.candidate_filter_df = pd.DataFrame(columns=[
+            "Name", "URL", "Description", "Location", "Gender",
+            "Age", "School_credential", "Experience", "Expected_Salary", "Status",
+            "Position 1", "Company 1", "Duration 1", "Job Details 1",
+            "Position 2", "Company 2", "Duration 2", "Job Details 2",
+            "Position 3", "Company 3", "Duration 3", "Job Details 3",
+            "University 1", "University Time 1", "Major 1", "Degree 1",
+            "University 2", "University Time 2", "Major 2", "Degree 2",
+            "Skill_tags"])
+
+
     def upload_link(self, link):
         self.driver.get(link)
         print(f"Link uploaded: {link}")
@@ -65,11 +76,8 @@ class MaiMaiScraper:
 
     def login_ez(self):
 
-        if(self.filter_instance == False):
-            self.driver.get(self.login_url)
-        else:
-            self.driver.get(self.filter_page)
-
+        self.driver.get(self.login_url)
+        
         if self.cookies_path:
             cookies = load_cookies_path(self.cookies_path)
             print(f"Loaded cookies from {self.cookies_path}")
@@ -95,6 +103,8 @@ class MaiMaiScraper:
                     self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
                     self.cookies = self.driver.get_cookies()
                     save_cookies(self.cookies)
+
+            """
                 
             else:
                 self.driver.get(self.filter_page)
@@ -105,6 +115,7 @@ class MaiMaiScraper:
                     time.sleep(3)
                     self.quit()
                     return
+            """
 
         else:
             print("Please log in manually.")
@@ -115,7 +126,7 @@ class MaiMaiScraper:
                 save_cookies(self.cookies)
                 print("Cookies saved.")
                 
-
+            """    
             else:
                 self.wait_180s.until(lambda driver: driver.current_url == "https://maimai.cn/feed_list" or self.filter_page in driver.current_url)
                 if(self.driver.current_url == "https://maimai.cn/feed_list"):
@@ -123,6 +134,7 @@ class MaiMaiScraper:
                 self.cookies = self.driver.get_cookies()
                 save_cookies(self.cookies)
                 print("Cookies saved.")
+            """
                 
         print("登录成功 - login success")
         
@@ -388,12 +400,18 @@ class MaiMaiScraper:
 
         messagebox.showinfo("Scrape Completed", "Excel file has been created and exported successfully!")
 
+    def export_filter_df_to_excel(self):
+        current_dir = os.getcwd()
+        output_file_path = f"{current_dir}/{self.tag}_filter_info.xlsx"
+        self.candidate_filter_df.to_excel(output_file_path, index=False)
+        print(f"Exported candidate information to {output_file_path}")
+
+        messagebox.showinfo("Scrape Completed", "Excel file has been created and exported successfully!")
+
     def extract_session(self):
         data = {}
         items = self.driver.find_elements(By.XPATH, "//div[@class='main___XqiPZ']/div[@class='item___3Zni1']")
         for i, item in enumerate(items):
-            if i == 0:  # Skip the first item
-                continue
             key = item.find_element(By.XPATH, ".//div[@class='header___12xvz']/h4[@class='title___2NzLt']").text.strip()
             values = item.find_elements(By.XPATH, ".//span[@class='value___1ycvM ellipsis']")
             value_list = [value.text for value in values]
@@ -417,20 +435,208 @@ class MaiMaiScraper:
         # Iterate through the items and apply the session filters
         items = self.driver.find_elements(By.XPATH, "//div[@class='main___XqiPZ']/div[@class='item___3Zni1']")
         for i, item in enumerate(items):
-            if i == 0:  # Skip the first item
-                continue
+            
             key = item.find_element(By.XPATH, ".//div[@class='header___12xvz']/h4[@class='title___2NzLt']").text.strip()
             if key not in session_data:
                 continue
             values = session_data[key]
-            
+
             for value in values:
                 add_button = item.find_element(By.XPATH, ".//span[@class='addConditionButton___r9kCF']")
                 add_button.click()
                 time.sleep(1)
-                option = item.find_element(By.XPATH, f".//li[@class='option___1Mabh']/span[text()='{value}']")
-                option.click()
-                time.sleep(1)
+                if i == 0 :
+                    input_field = item.find_element(By.XPATH, ".//input[@placeholder='输入关键词']")
+                    input_field.click()
+                    input_field.send_keys(value)
+                    submit_button = item.find_element(By.XPATH, ".//button[span[text()='提 交']]")
+                    submit_button.click()
+                    time.sleep(1)
+                else:
+                    option = item.find_element(By.XPATH, f".//li[@class='option___1Mabh']/span[text()='{value}']")
+                    option.click()
+                    time.sleep(1)
+                
+
+    def scroll_load_filter(self):
+
+        # Find the scroll box element
+        scroll_box = self.driver.find_element(By.CLASS_NAME, "list___2Tijr")
+
+        current_count = 0
+        while current_count <= self.max_candidates:
+            # Scroll the box down by 1000 pixels
+            self.driver.execute_script('arguments[0].scrollTop += 3000;', scroll_box)
+            time.sleep(3)  # Wait for new items to load
+
+            # Check if the "Load More" button is present and clickable
+            load_more_buttons = self.driver.find_elements(By.XPATH, "//span[@class='loadMore___CClgS']")
+            if load_more_buttons:
+                # Click the "Load More" button
+                load_more_buttons[0].click()
+                time.sleep(3)  # Wait for more items to load
+
+            # Count the number of loaded items
+            new_count = len(self.driver.find_elements(By.XPATH, "//div[contains(@class, 'card___3gwOI')]"))
+
+            
+            if new_count == current_count:
+                # If no new items loaded, exit the loop
+                break
+
+            current_count = new_count
+
+        print(f"Loaded {current_count} people. Extracting {self.max_candidates} people.")
+    
+    def extract_filter_info(self):
+        info = {
+            "Name": "",
+            "URL": self.driver.current_url,
+            "Description": "",
+            "Location": "",
+            "Gender": "",
+            "Age": "",
+            "School_credential": "", 
+            "Experience": "", 
+            "Expected_Salary": "", 
+            "Status": "",
+            "Position 1": "",
+            "Company 1": "",
+            "Duration 1": "",
+            "Job Details 1": "",
+            "Position 2": "",
+            "Company 2": "",
+            "Duration 2": "",
+            "Job Details 2": "",
+            "Position 3": "",
+            "Company 3": "",
+            "Duration 3": "",
+            "Job Details 3": "",
+            "University 1": "",
+            "University Time 1": "",
+            "Major 1": "",
+            "Degree 1": "",
+            "University 2": "",
+            "University Time 2": "",
+            "Major 2": "",
+            "Degree 2": "",
+            "Skill_tags": ""
+        }
+
+        # Extract basic information
+        basic_info_section = self.driver.find_element(By.CLASS_NAME, "basic___2ANr7")
+        info["Name"] = basic_info_section.find_element(By.TAG_NAME, "h5").text
+        info["Description"] = basic_info_section.find_element(By.CLASS_NAME, "name___c_XT2").find_element(By.TAG_NAME, "span").text.strip("()")
+        
+        line2_info = basic_info_section.find_element(By.CLASS_NAME, "line2___3eKCC").find_elements(By.TAG_NAME, "span")
+        for detail in line2_info:
+            text = detail.text.split(": ")
+            if len(text) == 2:
+                key, value = text
+                if key == "地区":
+                    info["Location"] = value
+                elif key == "性别":
+                    info["Gender"] = value
+                elif key == "年龄":
+                    info["Age"] = value
+                elif key == "学历":
+                    info["School_credential"] = value
+                elif key == "经验":
+                    info["Experience"] = value
+                elif key == "期望薪资":
+                    info["Expected_Salary"] = value
+                elif key == "状态":
+                    info["Status: "] = value
+
+        # Extract work experience
+        work_experience_section = self.driver.find_elements(By.XPATH, "//h3[contains(text(), '工作经历')]/following-sibling::div[@class='sectionItem___2Crs2']")
+        for i, section_item in enumerate(work_experience_section[:3]):  # Limit to the first 3 experiences
+            company = section_item.find_element(By.CLASS_NAME, "line1___3KF4V").text
+            duration_and_position = section_item.find_element(By.CLASS_NAME, "line2___3eKCC").text.split(", ")
+            if len(duration_and_position) == 2:
+                duration, position = duration_and_position
+            else:
+                duration = duration_and_position[0] if duration_and_position else ""
+                position = ""
+            job_details = " ".join([p.text for p in section_item.find_elements(By.CLASS_NAME, "line3___2pBBU")])
+
+            info[f"Position {i+1}"] = position
+            info[f"Company {i+1}"] = company
+            info[f"Duration {i+1}"] = duration
+            info[f"Job Details {i+1}"] = job_details
+        
+        # Extract education experience
+        education_experience_section = self.driver.find_elements(By.XPATH, "//h3[contains(text(), '教育经历')]/following-sibling::div[@class='sectionItem___2Crs2']")
+        for i, section_item in enumerate(education_experience_section[:2]):  # Limit to the first 2 experiences
+            university = section_item.find_element(By.CLASS_NAME, "line1___3KF4V").text
+            details = section_item.find_element(By.CLASS_NAME, "line2___3eKCC").text.split(", ")
+            if len(details) == 3:
+                university_time, major, degree = details
+            else:
+                university_time, major = details[0], ""
+                degree = details[1] if len(details) > 1 else ""
+
+            info[f"University {i+1}"] = university
+            info[f"University Time {i+1}"] = university_time
+            info[f"Major {i+1}"] = major
+            info[f"Degree {i+1}"] = degree
+
+        # Extract skill tags
+        skill_tags_section = self.driver.find_element(By.XPATH, "//h3[contains(text(), '技能标签')]/following-sibling::div[@class='info___2TdCJ']")
+        skill_tags = [tag.text for tag in skill_tags_section.find_elements(By.CLASS_NAME, "tag___RgLU2")]
+        info["Skill_tags"] = ", ".join(skill_tags)
+
+        return info
+
+    def click_and_extract_filter(self):
+        candidates = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'card___3gwOI')]")
+        candidate_count = 1
+        main_window = self.driver.current_window_handle 
+        for candidate in candidates:
+            #Max candidates to be searched
+            if candidate_count > self.max_candidates:
+                break
+
+            # Scroll to the candidate element
+            self.driver.execute_script("arguments[0].scrollIntoView(true);", candidate)
+            self.driver.execute_script("window.scrollBy(0, -100);")
+
+            # Click on the 查看微简历 button
+            resume_button = candidate.find_element(By.XPATH, ".//button[contains(@class, 'button_s_exact_link_bgray___21R4W')]")
+            resume_button.click()
+
+            # Switch to the new tab
+            new_window = self.driver.window_handles[-1]
+            self.driver.switch_to.window(new_window)
+
+            time.sleep(2)
+            new_window = None
+            for handle in self.driver.window_handles:
+                if handle != main_window:
+                    new_window = handle
+                    break
+
+            # Switch to the new tab
+            if new_window:
+                self.driver.switch_to.window(new_window)
+                time.sleep(2)
+                # Extract the information from the profile page
+                
+                try:
+                    candidate_info = self.extract_filter_info()
+                    self.candidate_filter_df = pd.concat([self.candidate_filter_df, pd.DataFrame([candidate_info])], ignore_index=True)
+                    candidate_count += 1
+                except Exception as e:
+                    print(f"Failed to extract information: {e}")
+                
+                # Close the new tab
+                self.driver.close()
+
+
+            # Switch back to the original tab
+            self.driver.switch_to.window(self.driver.window_handles[0])
+
+            time.sleep(1)  # Wait for the page to load
     
     def run(self):
 
@@ -464,33 +670,49 @@ class MaiMaiScraper:
             self.scroll_and_load()
             time.sleep(1)
             self.click_and_extract()
+            time.sleep(3)
+            self.export_df_to_excel()
             time.sleep(10)
             self.quit()
 
         elif(self.filter_instance == True and self.filter_session == None):
-            self.login_ez()
-            time.sleep(15)
-            self.extract_session()
-            time.sleep(3)
-            self.quit()
+            self.driver.get(self.filter_page)
+            self.wait_180s.until(lambda driver: driver.current_url == "https://maimai.cn/feed_list" or self.filter_page in driver.current_url)
+            if(self.driver.current_url == "https://maimai.cn/feed_list"):
+                    self.driver.get(self.filter_page)
+
+            print("Select the filter options and press the 'Save' button when you are ready to extract the filter data.")
+            time.sleep(600)
+            #self.extract_session()
+            #time.sleep(2)
+            
+
 
         elif(self.filter_instance == True and self.filter_session != None):
-            self.login_ez()
+            self.driver.get(self.filter_page)
+            self.wait_180s.until(lambda driver: driver.current_url == "https://maimai.cn/feed_list" or self.filter_page in driver.current_url)
+            if(self.driver.current_url == "https://maimai.cn/feed_list"):
+                    self.driver.get(self.filter_page)
             time.sleep(2)
             self.load_session(self.filter_folder)
-            time.sleep(600)
+            time.sleep(2)
+            self.scroll_load_filter()
+            time.sleep(1)
+            self.click_and_extract_filter()
+            time.sleep(2)
+            self.export_filter_df_to_excel()
+            time.sleep(5)
 
-
-
-
+"""
 if __name__ == "__main__":
     #Specify the necessary parameters
     url_page = "https://maimai.cn/web/search_center?type=contact&query=Bytedance&highlight=true"
-    tag = "AnyHelper"
-    max_candidates = 100
+    tag = "AnyHelper2"
+    max_candidate = 22
 
     # Create an instance of MaiMaiScraper
-    scraper = MaiMaiScraper(tag = tag + "_", max_candidates=max_candidates, filter_folder= "C:/AnyHelper/MaiMai_auto/scraper/sessions", filter_instance=True, filter_session=True)
+    scraper = MaiMaiScraper(tag = tag + "_", max_candidates=max_candidate, filter_folder= "C:/AnyHelper/MaiMai_auto/scraper/sessions", filter_instance=True, filter_session=True)
 
     # Run the scraper
     scraper.run()
+"""    

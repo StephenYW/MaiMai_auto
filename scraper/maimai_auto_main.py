@@ -48,7 +48,6 @@ class MaiMaiScraper:
         self.cookies = []
         self.wait_10s = WebDriverWait(self.driver, 10, 0.5)
         self.wait_180s = WebDriverWait(self.driver, 180, 0.5)
-
         self.candidate_df = pd.DataFrame(columns=[
             "Name", "URL", "Description", "Industry", "Location", "IP Location",
             "Position 1", "Company 1", "Duration 1", "Job Details 1", "Job Keywords 1",
@@ -409,6 +408,7 @@ class MaiMaiScraper:
         messagebox.showinfo("Scrape Completed", "Excel file has been created and exported successfully!")
 
     def extract_session(self):
+        print("Extracting session data...")
         data = {}
         items = self.driver.find_elements(By.XPATH, "//div[@class='main___XqiPZ']/div[@class='item___3Zni1']")
         for i, item in enumerate(items):
@@ -426,9 +426,9 @@ class MaiMaiScraper:
 
         print(f"Session extracted and saved to {self.filter_folder}. To extract the candidate info, upload the session.json file and rerun the program")
         
-    def load_session(self, filter_folder):
+    def load_session(self):
         # Load the session JSON file
-        file_path = f"{filter_folder}/{self.tag}session.json"
+        file_path = f"{self.filter_session}"
         with open(file_path, 'r', encoding='utf-8') as f:
             session_data = json.load(f)
 
@@ -546,7 +546,7 @@ class MaiMaiScraper:
                 elif key == "期望薪资":
                     info["Expected_Salary"] = value
                 elif key == "状态":
-                    info["Status: "] = value
+                    info["Status"] = value
 
         # Extract work experience
         work_experience_section = self.driver.find_elements(By.XPATH, "//h3[contains(text(), '工作经历')]/following-sibling::div[@class='sectionItem___2Crs2']")
@@ -694,7 +694,7 @@ class MaiMaiScraper:
             if(self.driver.current_url == "https://maimai.cn/feed_list"):
                     self.driver.get(self.filter_page)
             time.sleep(2)
-            self.load_session(self.filter_folder)
+            self.load_session()
             time.sleep(2)
             self.scroll_load_filter()
             time.sleep(1)

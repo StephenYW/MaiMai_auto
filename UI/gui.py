@@ -45,9 +45,10 @@ class MainGUI(ctk.CTk):
         self._set_appearance_mode("system")
 
         self.grid_rowconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        #self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
+        
 
         #Images
         # load images with light and dark mode image
@@ -69,7 +70,7 @@ class MainGUI(ctk.CTk):
 
         # Create constraints frame
         self.constraints_frame = ctk.CTkFrame(self, corner_radius=5)
-        self.constraints_frame.grid(row=1, column=1, padx=20, pady=20, sticky="ew")
+        self.constraints_frame.grid(row=1, column=1, padx=20, pady=20, sticky="sew")
         #self.constraints_frame.grid_columnconfigure(0, weight=1)
         self.constraints_frame.grid_rowconfigure(0, weight=0)
         self.constraints_frame.grid_columnconfigure(0, weight=1)
@@ -89,7 +90,7 @@ class MainGUI(ctk.CTk):
 
         # create filter frame
         self.filter_frame = ctk.CTkScrollableFrame(self, corner_radius=5, fg_color="transparent")
-        self.filter_frame.grid(row=0, column=1)
+        self.filter_frame.grid(row=0, column=1, padx=20, pady=20, sticky="sew")
         self.filter_frame.grid_columnconfigure(1, weight=1)
         
 
@@ -235,11 +236,11 @@ class MainGUI(ctk.CTk):
         self.text_box_filter.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
 
         # Start button
-        self.start_button_filter = ctk.CTkButton(self.filter_frame, text="Start", command=self.submit_input)
+        self.start_button_filter = ctk.CTkButton(self.filter_frame, text="Start", command=self.submit_input_filter)
         self.start_button_filter.grid(row=3, column=0, padx=20, pady=10, sticky="w")
 
         # Stop button
-        self.stop_button_filter = ctk.CTkButton(self.filter_frame, text="Stop", command=self.stop_run)
+        self.stop_button_filter = ctk.CTkButton(self.filter_frame, text="Stop", command=self.stop_run_filter)
         self.stop_button_filter.grid(row=3, column=0, padx=20, pady=10)
         self.stop_button_filter.configure(state=ctk.DISABLED)
 
@@ -360,13 +361,13 @@ class MainGUI(ctk.CTk):
         if self.submitted_filter_session != self.submitted_filter_session_default and self.submitted_filter_session != "":
             self.process_filter_load(self.submitted_filter_session)
         else:
-            self.process_filter_save(self.submitted_filter_session)
+            self.process_filter_save(self.submitted_filter_folder)
         
      def process_filter_load(self,filter_session):
         self.start_button_filter.configure(state=ctk.DISABLED)
         self.stop_button_filter.configure(state=ctk.NORMAL)
 
-        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_instance = True, filter_session = filter_session)
+        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_instance = True, filter_session = filter_session, filter_folder=self.submitted_filter_folder)
         self.maimai_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.run())
         self.maimai_scraper_thread.start()
 
@@ -381,11 +382,10 @@ class MainGUI(ctk.CTk):
 
      def save_filter(self):
         try:
-            save_session_thread = threading.Thread(target=lambda: self.maimai_scraper.driver.extract_session())
-            save_session_thread.start()
+            self.maimai_scraper.extract_session()
+        finally:
             close_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.driver.quit())
             close_scraper_thread.start()
-        finally:
             self.stop_button_filter.configure(state=ctk.DISABLED)
             self.start_button_filter.configure(state=ctk.NORMAL)
             self.filter_save_button.configure(state=ctk.DISABLED)
@@ -450,6 +450,15 @@ class MainGUI(ctk.CTk):
         finally:
             self.stop_button_excel.configure(state=ctk.DISABLED)
             self.start_button_excel.configure(state=ctk.NORMAL)
+            print("Stop Running")
+
+     def stop_run_filter(self):
+         try:
+            close_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.driver.quit())
+            close_scraper_thread.start()
+         finally:
+            self.stop_button_filter.configure(state=ctk.DISABLED)
+            self.start_button_filter.configure(state=ctk.NORMAL)
             print("Stop Running")
 
 if __name__ == "__main__":

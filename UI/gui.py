@@ -8,6 +8,8 @@ from scraper.maimai_auto_main import MaiMaiScraper
 from util.cookies_util import *
 import pandas as pd
 import os
+import sys
+from os import path
 from PIL import Image
 
 class ConsoleDirector:
@@ -52,12 +54,12 @@ class MainGUI(ctk.CTk):
 
         #Images
         # load images with light and dark mode image
-        self.image_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_images")
-        self.logo_image = ctk.CTkImage(Image.open(os.path.join(self.image_path, "maimai_logo.png")), size=(32, 32))
+        #self.image_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_images")
+        self.logo_image = ctk.CTkImage(Image.open(self.get_image_path('maimai_logo.png', 'test_images')), size=(32, 32))
 
-        self.url_image = ctk.CTkImage(dark_image=Image.open(os.path.join(self.image_path, "url_logo.png")), size=(24, 24))
-        self.excel_image = ctk.CTkImage(dark_image=Image.open(os.path.join(self.image_path, "Excel_logo.png")), size=(24, 24))
-        self.filter_image = ctk.CTkImage(dark_image=Image.open(os.path.join(self.image_path, "filter_logo.png")), size=(24, 24))
+        self.url_image = ctk.CTkImage(dark_image=Image.open(self.get_image_path('url_logo.png', 'test_images')), size=(24, 24))
+        self.excel_image = ctk.CTkImage(dark_image=Image.open(self.get_image_path('Excel_logo.png', 'test_images')), size=(24, 24))
+        self.filter_image = ctk.CTkImage(dark_image=Image.open(self.get_image_path('filter_logo.png', 'test_images')), size=(24, 24))
 
         # create navigation frame
         self.navigation_frame = ctk.CTkFrame(self, corner_radius=5)
@@ -251,7 +253,17 @@ class MainGUI(ctk.CTk):
         
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
-    
+     def get_image_path(self, image_name, folder='test_images'):
+        """Get the path to an image file in the specified folder."""
+        if getattr(sys, 'frozen', False):
+            # The application is frozen (running as an executable)
+            base_path = sys._MEIPASS
+        else:
+            # The application is running in a normal Python environment
+            base_path = path.dirname(__file__)
+
+        return path.join(base_path, folder, image_name)
+     
      def select_frame_by_name(self, name):
         # set button color for selected button
         self.url_button.configure(fg_color=("gray75", "gray25") if name == "home" else "transparent")

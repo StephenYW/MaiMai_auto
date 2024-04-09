@@ -34,7 +34,6 @@ class MainGUI(ctk.CTk):
         self.submitted_excel_default = "Paste the path to the Excel file you would like to input"
         self.submitted_filter_folder_default = self.current_dir
         self.submitted_filter_session_default = "Paste the path to the session file you would like to input"
-        self.submitted_filter_instance = False
         self.submitted_url = ""
         self.submitted_excel = ""
         self.submitted_filter_folder = ""
@@ -221,6 +220,15 @@ class MainGUI(ctk.CTk):
         self.filter_save_button.grid(row=1, column=0, padx=10, pady=10)
         self.filter_save_button.configure(state=ctk.DISABLED)
 
+        # Start button
+        self.start_button_filter_save = ctk.CTkButton(self.filter_save_frame, text="Start", command=self.submit_input_filter_save)
+        self.start_button_filter_save.grid(row=2, column=0, padx=10, pady=10, sticky="w")
+
+        # Stop button
+        self.stop_button_filter_save = ctk.CTkButton(self.filter_save_frame, text="Stop", command=self.stop_run_filter_save)
+        self.stop_button_filter_save.grid(row=2, column=0, padx=10, pady=10)
+        self.stop_button_filter_save.configure(state=ctk.DISABLED)
+
         self.filter_load_frame = ctk.CTkFrame(self.filter_frame, corner_radius=5)
         self.filter_load_frame.grid(row=1, column=0, padx=20, pady=20, sticky="nsew")
 
@@ -233,19 +241,18 @@ class MainGUI(ctk.CTk):
         self.browse_filter_session_button = ctk.CTkButton(self.filter_load_frame, text="Browse", command=self.browse_filter_session)
         self.browse_filter_session_button.grid(row=1, column=0, padx=10, pady=10, sticky="w")
 
+        # Start button
+        self.start_button_filter_load = ctk.CTkButton(self.filter_load_frame, text="Start", command=self.submit_input_filter_load)
+        self.start_button_filter_load.grid(row=2, column=0, padx=10, pady=10, sticky="w")
+
+        # Stop button
+        self.stop_button_filter_load = ctk.CTkButton(self.filter_load_frame, text="Stop", command=self.stop_run_filter_load)
+        self.stop_button_filter_load.grid(row=2, column=0, padx=10, pady=10)
+        self.stop_button_filter_load.configure(state=ctk.DISABLED)
+
         # Text box to show information
         self.text_box_filter = ctk.CTkTextbox(self.filter_frame)
         self.text_box_filter.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
-
-        # Start button
-        self.start_button_filter = ctk.CTkButton(self.filter_frame, text="Start", command=self.submit_input_filter)
-        self.start_button_filter.grid(row=3, column=0, padx=20, pady=10, sticky="w")
-
-        # Stop button
-        self.stop_button_filter = ctk.CTkButton(self.filter_frame, text="Stop", command=self.stop_run_filter)
-        self.stop_button_filter.grid(row=3, column=0, padx=20, pady=10)
-        self.stop_button_filter.configure(state=ctk.DISABLED)
-
 
         # Redirect print to text box
         sys.stdout = ConsoleDirector(self.text_box_filter)
@@ -364,7 +371,19 @@ class MainGUI(ctk.CTk):
          else:
             print("Please input an Excel file path")
 
-     def submit_input_filter(self):
+     def submit_input_filter_save(self):
+        self.submitted_filter_folder = self.filter_folder_entry.get()
+        self.submitted_tag = self.tag_entry.get()
+        self.submitted_max_candidates = self.max_candidates_entry.get()
+
+        if self.submitted_filter_session != self.submitted_filter_session_default and self.submitted_filter_session != "":
+            self.process_filter_save(self.submitted_filter_session)
+            print(f"Filter session will be saved in {self.submitted_filter_folder}")
+        else:
+            self.process_filter_save(self.submitted_filter_session)
+            print("Filter session will be saved in current directory.")
+
+     def submit_input_filter_load(self):
         self.submitted_filter_folder = self.filter_folder_entry.get()
         self.submitted_tag = self.tag_entry.get()
         self.submitted_max_candidates = self.max_candidates_entry.get()
@@ -373,22 +392,22 @@ class MainGUI(ctk.CTk):
         if self.submitted_filter_session != self.submitted_filter_session_default and self.submitted_filter_session != "":
             self.process_filter_load(self.submitted_filter_session)
         else:
-            self.process_filter_save(self.submitted_filter_folder)
+            print("Please input a session file path")
         
      def process_filter_load(self,filter_session):
-        self.start_button_filter.configure(state=ctk.DISABLED)
-        self.stop_button_filter.configure(state=ctk.NORMAL)
+        self.start_button_filter_load.configure(state=ctk.DISABLED)
+        self.stop_button_filter_load.configure(state=ctk.NORMAL)
 
-        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_instance = True, filter_session = filter_session, filter_folder=self.submitted_filter_folder)
+        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_session = filter_session, filter_folder=self.submitted_filter_folder)
         self.maimai_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.run())
         self.maimai_scraper_thread.start()
 
      def process_filter_save(self, filter_folder):
         
-        self.start_button_filter.configure(state=ctk.DISABLED)
-        self.stop_button_filter.configure(state=ctk.NORMAL)
+        self.start_button_filter_save.configure(state=ctk.DISABLED)
+        self.stop_button_filter_save.configure(state=ctk.NORMAL)
         self.filter_save_button.configure(state=ctk.NORMAL)
-        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_instance = True, filter_folder = filter_folder)
+        self.maimai_scraper = MaiMaiScraper(tag=self.submitted_tag, max_candidates=int(self.submitted_max_candidates), cookies_path=self.cookies_path, filter_save = True, filter_folder = filter_folder)
         self.maimai_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.run())
         self.maimai_scraper_thread.start()
 
@@ -464,14 +483,26 @@ class MainGUI(ctk.CTk):
             self.start_button_excel.configure(state=ctk.NORMAL)
             print("Stop Running")
 
-     def stop_run_filter(self):
+     def stop_run_filter_save(self):
          try:
             close_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.driver.quit())
             close_scraper_thread.start()
          finally:
-            self.stop_button_filter.configure(state=ctk.DISABLED)
-            self.start_button_filter.configure(state=ctk.NORMAL)
+
+            self.stop_button_filter_save.configure(state=ctk.DISABLED)
+            self.start_button_filter_save.configure(state=ctk.NORMAL)
+            self.filter_save_button.configure(state=ctk.DISABLED)
             print("Stop Running")
+
+     def stop_run_filter_load(self):
+        try:
+            close_scraper_thread = threading.Thread(target=lambda: self.maimai_scraper.driver.quit())
+            close_scraper_thread.start()
+        finally:
+            self.stop_button_filter_load.configure(state=ctk.DISABLED)
+            self.start_button_filter_load.configure(state=ctk.NORMAL)
+            print("Stop Running")     
+                
 
 if __name__ == "__main__":
     gui = MainGUI()

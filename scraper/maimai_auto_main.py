@@ -21,7 +21,7 @@ class MaiMaiScraper:
                  max_candidates = 100, 
                  cookies_path = None, 
                  excel_path = None,
-                 filter_instance = False,
+                 filter_save = False,
                  filter_folder = None,
                  filter_session = None):        
         chrome_options = webdriver.ChromeOptions()
@@ -40,7 +40,7 @@ class MaiMaiScraper:
         self.keywords_url = []
         self.tag = tag
         self.excel_path = excel_path
-        self.filter_instance = filter_instance
+        self.filter_save = filter_save
         self.filter_folder = filter_folder
         self.filter_session = filter_session
         self.cookies_path = cookies_path
@@ -56,16 +56,6 @@ class MaiMaiScraper:
             "University 1", "University Time 1", "Major 1", "Degree 1",
             "University 2", "University Time 2", "Major 2", "Degree 2"
         ])
-
-        self.candidate_filter_df = pd.DataFrame(columns=[
-            "Name", "URL", "Description", "Location", "Gender",
-            "Age", "School_credential", "Experience", "Expected_Salary", "Status",
-            "Position 1", "Company 1", "Duration 1", "Job Details 1",
-            "Position 2", "Company 2", "Duration 2", "Job Details 2",
-            "Position 3", "Company 3", "Duration 3", "Job Details 3",
-            "University 1", "University Time 1", "Major 1", "Degree 1",
-            "University 2", "University Time 2", "Major 2", "Degree 2",
-            "Skill_tags"])
 
 
     def upload_link(self, link):
@@ -92,16 +82,16 @@ class MaiMaiScraper:
 
             time.sleep(3)
 
-            if(self.filter_instance == False):
-                self.driver.get("https://maimai.cn/feed_list")
+            
+            self.driver.get("https://maimai.cn/feed_list")
                 
-                time.sleep(3)
+            time.sleep(3)
                 
-                if self.login_url in self.driver.current_url:
-                    print("Cookies are expired. Please log in manually or stop the program and upload new cookies.")
-                    self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
-                    self.cookies = self.driver.get_cookies()
-                    save_cookies(self.cookies)
+            if self.login_url in self.driver.current_url:
+                print("Cookies are expired. Please log in manually or stop the program and upload new cookies.")
+                self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
+                self.cookies = self.driver.get_cookies()
+                save_cookies(self.cookies)
 
             """
                 
@@ -119,11 +109,11 @@ class MaiMaiScraper:
         else:
             print("Please log in manually.")
 
-            if(self.filter_instance == False):
-                self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
-                self.cookies = self.driver.get_cookies()
-                save_cookies(self.cookies)
-                print("Cookies saved.")
+            
+            self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
+            self.cookies = self.driver.get_cookies()
+            save_cookies(self.cookies)
+            print("Cookies saved.")
                 
             """    
             else:
@@ -399,13 +389,6 @@ class MaiMaiScraper:
 
         messagebox.showinfo("Scrape Completed", "Excel file has been created and exported successfully!")
 
-    def export_filter_df_to_excel(self):
-        current_dir = os.getcwd()
-        output_file_path = f"{current_dir}/{self.tag}_filter_info.xlsx"
-        self.candidate_filter_df.to_excel(output_file_path, index=False)
-        print(f"Exported candidate information to {output_file_path}")
-
-        messagebox.showinfo("Scrape Completed", "Excel file has been created and exported successfully!")
 
     def extract_session(self):
         print("Extracting session data...")
@@ -487,8 +470,9 @@ class MaiMaiScraper:
             current_count = new_count
 
         print(f"Loaded {current_count} people. Extracting {self.max_candidates} people.")
-    
-    def extract_filter_info(self):
+
+    """
+    def extract_filter_info(self, url):
         info = {
             "Name": "",
             "URL": self.driver.current_url,
@@ -587,6 +571,8 @@ class MaiMaiScraper:
         info["Skill_tags"] = ", ".join(skill_tags)
 
         return info
+    
+    """
 
     def click_and_extract_filter(self):
         candidates = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'card___3gwOI')]")
@@ -600,10 +586,10 @@ class MaiMaiScraper:
             # Scroll to the candidate element
             self.driver.execute_script("arguments[0].scrollIntoView(true);", candidate)
             self.driver.execute_script("window.scrollBy(0, -100);")
-
+            
             # Click on the 查看微简历 button
-            resume_button = candidate.find_element(By.XPATH, ".//button[contains(@class, 'button_s_exact_link_bgray___21R4W')]")
-            resume_button.click()
+            candidate_button =  candidate.find_element(By.XPATH, ".//span[contains(@class, 'like-link-button')]")
+            candidate_button.click()
 
             # Switch to the new tab
             new_window = self.driver.window_handles[-1]
@@ -623,8 +609,8 @@ class MaiMaiScraper:
                 # Extract the information from the profile page
                 
                 try:
-                    candidate_info = self.extract_filter_info()
-                    self.candidate_filter_df = pd.concat([self.candidate_filter_df, pd.DataFrame([candidate_info])], ignore_index=True)
+                    candidate_info = self.extract_info()
+                    self.candidate_df = pd.concat([self.candidate_df, pd.DataFrame([candidate_info])], ignore_index=True)
                     candidate_count += 1
                 except Exception as e:
                     print(f"Failed to extract information: {e}")
@@ -675,7 +661,7 @@ class MaiMaiScraper:
             time.sleep(10)
             self.quit()
 
-        elif(self.filter_instance == True and self.filter_session == None):
+        elif(self.filter_save == True):
             self.driver.get(self.filter_page)
             self.wait_180s.until(lambda driver: driver.current_url == "https://maimai.cn/feed_list" or self.filter_page in driver.current_url)
             if(self.driver.current_url == "https://maimai.cn/feed_list"):
@@ -688,7 +674,7 @@ class MaiMaiScraper:
             
 
 
-        elif(self.filter_instance == True and self.filter_session != None):
+        elif(self.filter_session != None):
             self.driver.get(self.filter_page)
             self.wait_180s.until(lambda driver: driver.current_url == "https://maimai.cn/feed_list" or self.filter_page in driver.current_url)
             if(self.driver.current_url == "https://maimai.cn/feed_list"):
@@ -700,7 +686,7 @@ class MaiMaiScraper:
             time.sleep(1)
             self.click_and_extract_filter()
             time.sleep(2)
-            self.export_filter_df_to_excel()
+            self.export_df_to_excel()
             time.sleep(5)
 
 """

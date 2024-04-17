@@ -74,6 +74,19 @@ class MaiMaiScraper:
             for cookie in cookies:
                 self.driver.add_cookie(cookie)
             
+            time.sleep(3)
+
+            
+            self.driver.get("https://maimai.cn/feed_list")
+                
+            time.sleep(3)
+                
+            if self.driver.current_url != "https://maimai.cn/feed_list":
+                print("Cookies are expired. Please log in manually or stop the program and upload new cookies.")
+                self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
+                self.cookies = self.driver.get_cookies()
+                save_cookies(self.cookies)
+            
         elif os.path.exists('cookies.pkl'):
             cookies = load_cookies()
             self.driver.delete_all_cookies()
@@ -87,24 +100,12 @@ class MaiMaiScraper:
                 
             time.sleep(3)
                 
-            if self.login_url in self.driver.current_url:
+            if self.driver.current_url != "https://maimai.cn/feed_list":
                 print("Cookies are expired. Please log in manually or stop the program and upload new cookies.")
                 self.wait_180s.until(EC.url_contains("https://maimai.cn/feed_list"))
                 self.cookies = self.driver.get_cookies()
                 save_cookies(self.cookies)
 
-            """
-                
-            else:
-                self.driver.get(self.filter_page)
-                time.sleep(3)
-                
-                if self.login_url in self.driver.current_url:
-                    print("Cookies are expired. Stop the program and upload new cookies or log in manually.")
-                    time.sleep(3)
-                    self.quit()
-                    return
-            """
 
         else:
             print("Please log in manually.")
@@ -162,7 +163,7 @@ class MaiMaiScraper:
         current_count = 0
         while True:
             # scroll down 1000 pixels
-            self.driver.execute_script('window.scrollBy(0, 1000)')
+            self.driver.execute_script('window.scrollBy(0, 1500)')
             time.sleep(3)  # Wait for the new items to load
 
             # Count the number of loaded items

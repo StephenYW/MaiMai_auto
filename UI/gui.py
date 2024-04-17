@@ -118,8 +118,7 @@ class MainGUI(ctk.CTk):
                                                       image=self.filter_image, anchor="w", command=self.filter_button_event)
         self.filter_button.grid(row=3, column=0, sticky="ew")
 
-        # select default frame
-        self.select_frame_by_name("url")
+        
         
         # Max candidates input
         self.max_candidates_label = ctk.CTkLabel(self.constraints_frame, text="Max Candidates:")
@@ -257,6 +256,10 @@ class MainGUI(ctk.CTk):
         # Redirect print to text box
         sys.stdout = ConsoleDirector(self.text_box_filter)
         sys.stderr = ConsoleDirector(self.text_box_filter)
+
+        # select default frame
+        self.select_frame_by_name("url")
+        self.redirect_output(self.text_box)
         
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
@@ -290,15 +293,23 @@ class MainGUI(ctk.CTk):
             self.filter_frame.grid(row=0, column=1, sticky="nsew")
         else:
             self.filter_frame.grid_forget()
+    
+     def redirect_output(self, text_widget):
+        """ Redirects Python's stdout and stderr to the given text widget. """
+        sys.stdout = ConsoleDirector(text_widget)
+        sys.stderr = ConsoleDirector(text_widget)
 
      def url_button_event(self):
         self.select_frame_by_name("url")
+        self.redirect_output(self.text_box)
 
      def excel_button_event(self):
         self.select_frame_by_name("excel")
+        self.redirect_output(self.text_box_excel) 
 
      def filter_button_event(self):
         self.select_frame_by_name("filter")
+        self.redirect_output(self.text_box_filter) 
 
      
      def process_url(self, url):
